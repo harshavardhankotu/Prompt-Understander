@@ -163,6 +163,7 @@ export const ListCategoriesResponseItem = zod.object({
       required: zod.boolean(),
     }),
   ),
+  priceFloor: zod.number().nullish(),
 });
 export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem);
 
@@ -205,6 +206,10 @@ export const ListRequirementsResponse = zod.object({
       attachmentUrl: zod.string().nullish(),
       winningBidId: zod.string().nullish(),
       isHighTicket: zod.boolean(),
+      isRecurring: zod.boolean(),
+      recurringInterval: zod.string().nullish(),
+      depositAmount: zod.number().nullish(),
+      depositPaid: zod.boolean(),
       bidCount: zod.number(),
       lowestBid: zod.number().nullish(),
       buyerName: zod.string(),
@@ -228,6 +233,8 @@ export const CreateRequirementBody = zod.object({
   maxBudget: zod.number(),
   deadlineHours: zod.number(),
   attachmentUrl: zod.string().nullish(),
+  isRecurring: zod.boolean().optional(),
+  recurringInterval: zod.string().nullish(),
 });
 
 /**
@@ -253,6 +260,10 @@ export const ListMyRequirementsResponseItem = zod.object({
   attachmentUrl: zod.string().nullish(),
   winningBidId: zod.string().nullish(),
   isHighTicket: zod.boolean(),
+  isRecurring: zod.boolean(),
+  recurringInterval: zod.string().nullish(),
+  depositAmount: zod.number().nullish(),
+  depositPaid: zod.boolean(),
   bidCount: zod.number(),
   lowestBid: zod.number().nullish(),
   buyerName: zod.string(),
@@ -290,6 +301,10 @@ export const GetRequirementResponse = zod
     attachmentUrl: zod.string().nullish(),
     winningBidId: zod.string().nullish(),
     isHighTicket: zod.boolean(),
+    isRecurring: zod.boolean(),
+    recurringInterval: zod.string().nullish(),
+    depositAmount: zod.number().nullish(),
+    depositPaid: zod.boolean(),
     bidCount: zod.number(),
     lowestBid: zod.number().nullish(),
     buyerName: zod.string(),
@@ -324,6 +339,8 @@ export const GetRequirementResponse = zod
           estimatedCompletion: zod.string(),
           status: zod.enum(["active", "accepted", "rejected", "withdrawn"]),
           isHighlighted: zod.boolean(),
+          executorType: zod.enum(["self", "partial"]),
+          subcontractorName: zod.string().nullish(),
           providerName: zod.string(),
           providerCity: zod.string().nullish(),
           providerTrustScore: zod.number(),
@@ -349,6 +366,7 @@ export const GetRequirementResponse = zod
             required: zod.boolean(),
           }),
         ),
+        priceFloor: zod.number().nullish(),
       }),
     }),
   );
@@ -380,6 +398,10 @@ export const CancelRequirementResponse = zod.object({
   attachmentUrl: zod.string().nullish(),
   winningBidId: zod.string().nullish(),
   isHighTicket: zod.boolean(),
+  isRecurring: zod.boolean(),
+  recurringInterval: zod.string().nullish(),
+  depositAmount: zod.number().nullish(),
+  depositPaid: zod.boolean(),
   bidCount: zod.number(),
   lowestBid: zod.number().nullish(),
   buyerName: zod.string(),
@@ -417,6 +439,10 @@ export const AcceptBidResponse = zod.object({
   attachmentUrl: zod.string().nullish(),
   winningBidId: zod.string().nullish(),
   isHighTicket: zod.boolean(),
+  isRecurring: zod.boolean(),
+  recurringInterval: zod.string().nullish(),
+  depositAmount: zod.number().nullish(),
+  depositPaid: zod.boolean(),
   bidCount: zod.number(),
   lowestBid: zod.number().nullish(),
   buyerName: zod.string(),
@@ -447,6 +473,8 @@ export const ListBidsResponseItem = zod.object({
   estimatedCompletion: zod.string(),
   status: zod.enum(["active", "accepted", "rejected", "withdrawn"]),
   isHighlighted: zod.boolean(),
+  executorType: zod.enum(["self", "partial"]),
+  subcontractorName: zod.string().nullish(),
   providerName: zod.string(),
   providerCity: zod.string().nullish(),
   providerTrustScore: zod.number(),
@@ -472,6 +500,8 @@ export const CreateBidBody = zod.object({
   portfolioUrl: zod.string().nullish(),
   estimatedCompletion: zod.string(),
   isHighlighted: zod.boolean().optional(),
+  executorType: zod.enum(["self", "partial"]).optional(),
+  subcontractorName: zod.string().nullish(),
 });
 
 /**
@@ -492,6 +522,8 @@ export const WithdrawBidResponse = zod.object({
   estimatedCompletion: zod.string(),
   status: zod.enum(["active", "accepted", "rejected", "withdrawn"]),
   isHighlighted: zod.boolean(),
+  executorType: zod.enum(["self", "partial"]),
+  subcontractorName: zod.string().nullish(),
   providerName: zod.string(),
   providerCity: zod.string().nullish(),
   providerTrustScore: zod.number(),
@@ -517,6 +549,8 @@ export const ListMyBidsResponseItem = zod
     estimatedCompletion: zod.string(),
     status: zod.enum(["active", "accepted", "rejected", "withdrawn"]),
     isHighlighted: zod.boolean(),
+    executorType: zod.enum(["self", "partial"]),
+    subcontractorName: zod.string().nullish(),
     providerName: zod.string(),
     providerCity: zod.string().nullish(),
     providerTrustScore: zod.number(),
@@ -554,6 +588,10 @@ export const ListMyBidsResponseItem = zod
         attachmentUrl: zod.string().nullish(),
         winningBidId: zod.string().nullish(),
         isHighTicket: zod.boolean(),
+        isRecurring: zod.boolean(),
+        recurringInterval: zod.string().nullish(),
+        depositAmount: zod.number().nullish(),
+        depositPaid: zod.boolean(),
         bidCount: zod.number(),
         lowestBid: zod.number().nullish(),
         buyerName: zod.string(),
@@ -682,6 +720,10 @@ export const GetBuyerDashboardResponse = zod.object({
       attachmentUrl: zod.string().nullish(),
       winningBidId: zod.string().nullish(),
       isHighTicket: zod.boolean(),
+      isRecurring: zod.boolean(),
+      recurringInterval: zod.string().nullish(),
+      depositAmount: zod.number().nullish(),
+      depositPaid: zod.boolean(),
       bidCount: zod.number(),
       lowestBid: zod.number().nullish(),
       buyerName: zod.string(),
@@ -713,6 +755,8 @@ export const GetProviderDashboardResponse = zod.object({
         estimatedCompletion: zod.string(),
         status: zod.enum(["active", "accepted", "rejected", "withdrawn"]),
         isHighlighted: zod.boolean(),
+        executorType: zod.enum(["self", "partial"]),
+        subcontractorName: zod.string().nullish(),
         providerName: zod.string(),
         providerCity: zod.string().nullish(),
         providerTrustScore: zod.number(),
@@ -750,6 +794,10 @@ export const GetProviderDashboardResponse = zod.object({
             attachmentUrl: zod.string().nullish(),
             winningBidId: zod.string().nullish(),
             isHighTicket: zod.boolean(),
+            isRecurring: zod.boolean(),
+            recurringInterval: zod.string().nullish(),
+            depositAmount: zod.number().nullish(),
+            depositPaid: zod.boolean(),
             bidCount: zod.number(),
             lowestBid: zod.number().nullish(),
             buyerName: zod.string(),
@@ -765,6 +813,115 @@ export const GetProviderDashboardResponse = zod.object({
       wonCount: zod.number(),
     }),
   ),
+});
+
+/**
+ * @summary Repost a completed/expired requirement as a new auction
+ */
+export const RepostRequirementParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary List disputes for current user
+ */
+export const ListDisputesResponseItem = zod.object({
+  id: zod.string(),
+  requirementId: zod.string(),
+  requirementTitle: zod.string(),
+  bidId: zod.string(),
+  raisedById: zod.string(),
+  raisedByName: zod.string(),
+  respondentId: zod.string(),
+  respondentName: zod.string(),
+  status: zod.enum(["open", "provider_responded", "resolved", "cancelled"]),
+  title: zod.string(),
+  description: zod.string(),
+  evidenceUrl: zod.string().nullish(),
+  response: zod.string().nullish(),
+  responseEvidenceUrl: zod.string().nullish(),
+  resolution: zod.enum(["buyer_wins", "provider_wins", "mutual"]).nullish(),
+  resolutionNote: zod.string().nullish(),
+  resolvedAt: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+export const ListDisputesResponse = zod.array(ListDisputesResponseItem);
+
+/**
+ * @summary Raise a dispute
+ */
+export const CreateDisputeBody = zod.object({
+  requirementId: zod.string(),
+  bidId: zod.string(),
+  title: zod.string(),
+  description: zod.string(),
+  evidenceUrl: zod.string().nullish(),
+});
+
+/**
+ * @summary Respond to a dispute
+ */
+export const RespondToDisputeParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RespondToDisputeBody = zod.object({
+  response: zod.string(),
+  responseEvidenceUrl: zod.string().nullish(),
+});
+
+export const RespondToDisputeResponse = zod.object({
+  id: zod.string(),
+  requirementId: zod.string(),
+  requirementTitle: zod.string(),
+  bidId: zod.string(),
+  raisedById: zod.string(),
+  raisedByName: zod.string(),
+  respondentId: zod.string(),
+  respondentName: zod.string(),
+  status: zod.enum(["open", "provider_responded", "resolved", "cancelled"]),
+  title: zod.string(),
+  description: zod.string(),
+  evidenceUrl: zod.string().nullish(),
+  response: zod.string().nullish(),
+  responseEvidenceUrl: zod.string().nullish(),
+  resolution: zod.enum(["buyer_wins", "provider_wins", "mutual"]).nullish(),
+  resolutionNote: zod.string().nullish(),
+  resolvedAt: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Resolve a dispute
+ */
+export const ResolveDisputeParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ResolveDisputeBody = zod.object({
+  resolution: zod.enum(["buyer_wins", "provider_wins", "mutual"]),
+  resolutionNote: zod.string(),
+});
+
+export const ResolveDisputeResponse = zod.object({
+  id: zod.string(),
+  requirementId: zod.string(),
+  requirementTitle: zod.string(),
+  bidId: zod.string(),
+  raisedById: zod.string(),
+  raisedByName: zod.string(),
+  respondentId: zod.string(),
+  respondentName: zod.string(),
+  status: zod.enum(["open", "provider_responded", "resolved", "cancelled"]),
+  title: zod.string(),
+  description: zod.string(),
+  evidenceUrl: zod.string().nullish(),
+  response: zod.string().nullish(),
+  responseEvidenceUrl: zod.string().nullish(),
+  resolution: zod.enum(["buyer_wins", "provider_wins", "mutual"]).nullish(),
+  resolutionNote: zod.string().nullish(),
+  resolvedAt: zod.string().nullish(),
+  createdAt: zod.string(),
 });
 
 /**

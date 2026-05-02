@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, jsonb, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -9,6 +9,7 @@ export const categoriesTable = pgTable("categories", {
   iconName: text("icon_name").notNull(),
   description: text("description").notNull().default(""),
   customFields: jsonb("custom_fields").notNull().default([]),
+  priceFloor: decimal("price_floor", { precision: 12, scale: 2 }),
 });
 
 export const insertCategorySchema = createInsertSchema(categoriesTable).omit({

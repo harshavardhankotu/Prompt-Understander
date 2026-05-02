@@ -109,6 +109,7 @@ export interface Category {
   iconName: string;
   description: string;
   customFields: CategoryField[];
+  priceFloor?: number | null;
 }
 
 export type CreateRequirementBodyCustomData = { [key: string]: unknown };
@@ -124,6 +125,8 @@ export interface CreateRequirementBody {
   maxBudget: number;
   deadlineHours: number;
   attachmentUrl?: string | null;
+  isRecurring?: boolean;
+  recurringInterval?: string | null;
 }
 
 export type RequirementCustomData = { [key: string]: unknown } | null;
@@ -159,6 +162,10 @@ export interface Requirement {
   attachmentUrl?: string | null;
   winningBidId?: string | null;
   isHighTicket: boolean;
+  isRecurring: boolean;
+  recurringInterval?: string | null;
+  depositAmount?: number | null;
+  depositPaid: boolean;
   bidCount: number;
   lowestBid?: number | null;
   buyerName: string;
@@ -179,6 +186,14 @@ export const BidStatus = {
   withdrawn: "withdrawn",
 } as const;
 
+export type BidExecutorType =
+  (typeof BidExecutorType)[keyof typeof BidExecutorType];
+
+export const BidExecutorType = {
+  self: "self",
+  partial: "partial",
+} as const;
+
 export interface Bid {
   id: string;
   requirementId: string;
@@ -190,6 +205,8 @@ export interface Bid {
   estimatedCompletion: string;
   status: BidStatus;
   isHighlighted: boolean;
+  executorType: BidExecutorType;
+  subcontractorName?: string | null;
   providerName: string;
   providerCity?: string | null;
   providerTrustScore: number;
@@ -219,6 +236,14 @@ export interface RequirementStats {
   isBidWar: boolean;
 }
 
+export type CreateBidBodyExecutorType =
+  (typeof CreateBidBodyExecutorType)[keyof typeof CreateBidBodyExecutorType];
+
+export const CreateBidBodyExecutorType = {
+  self: "self",
+  partial: "partial",
+} as const;
+
 export interface CreateBidBody {
   bidAmount: number;
   message: string;
@@ -226,6 +251,8 @@ export interface CreateBidBody {
   portfolioUrl?: string | null;
   estimatedCompletion: string;
   isHighlighted?: boolean;
+  executorType?: CreateBidBodyExecutorType;
+  subcontractorName?: string | null;
 }
 
 export type BidWithRequirement = Bid & {
@@ -320,6 +347,73 @@ export interface ProviderDashboard {
   subscriptionPlan: string;
   recentBids: BidWithRequirement[];
   categoryBreakdown: CategoryBidCount[];
+}
+
+export type DisputeStatus = (typeof DisputeStatus)[keyof typeof DisputeStatus];
+
+export const DisputeStatus = {
+  open: "open",
+  provider_responded: "provider_responded",
+  resolved: "resolved",
+  cancelled: "cancelled",
+} as const;
+
+export type DisputeResolution =
+  | (typeof DisputeResolution)[keyof typeof DisputeResolution]
+  | null;
+
+export const DisputeResolution = {
+  buyer_wins: "buyer_wins",
+  provider_wins: "provider_wins",
+  mutual: "mutual",
+} as const;
+
+export interface Dispute {
+  id: string;
+  requirementId: string;
+  requirementTitle: string;
+  bidId: string;
+  raisedById: string;
+  raisedByName: string;
+  respondentId: string;
+  respondentName: string;
+  status: DisputeStatus;
+  title: string;
+  description: string;
+  evidenceUrl?: string | null;
+  response?: string | null;
+  responseEvidenceUrl?: string | null;
+  resolution?: DisputeResolution;
+  resolutionNote?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+}
+
+export interface CreateDisputeBody {
+  requirementId: string;
+  bidId: string;
+  title: string;
+  description: string;
+  evidenceUrl?: string | null;
+}
+
+export interface RespondDisputeBody {
+  response: string;
+  responseEvidenceUrl?: string | null;
+}
+
+export type ResolveDisputeBodyResolution =
+  (typeof ResolveDisputeBodyResolution)[keyof typeof ResolveDisputeBodyResolution];
+
+export const ResolveDisputeBodyResolution = {
+  buyer_wins: "buyer_wins",
+  provider_wins: "provider_wins",
+  mutual: "mutual",
+} as const;
+
+export interface ResolveDisputeBody {
+  resolution: ResolveDisputeBodyResolution;
+  resolutionNote: string;
 }
 
 export type ListRequirementsParams = {

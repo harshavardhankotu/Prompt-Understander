@@ -9,6 +9,7 @@ import reviewsRouter from "./reviews";
 import notificationsRouter from "./notifications";
 import subscriptionsRouter from "./subscriptions";
 import dashboardRouter from "./dashboard";
+import disputesRouter from "./disputes";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(reviewsRouter);
 router.use(notificationsRouter);
 router.use(subscriptionsRouter);
 router.use(dashboardRouter);
+router.use(disputesRouter);
 
 export default router;

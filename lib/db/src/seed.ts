@@ -7,6 +7,7 @@ const categories = [
     slug: "healthcare",
     iconName: "Heart",
     description: "Medical procedures, consultations, diagnostics, surgeries, and wellness services",
+    priceFloor: "500",
     customFields: [
       { key: "specialty", label: "Medical Specialty", type: "select", options: ["General", "Cardiology", "Orthopedics", "Dentistry", "Ophthalmology", "Neurology", "Gynecology", "Pediatrics"], required: false },
     ],
@@ -16,6 +17,7 @@ const categories = [
     slug: "logistics",
     iconName: "Truck",
     description: "Courier, packers & movers, freight, and transport services",
+    priceFloor: "200",
     customFields: [
       { key: "weight_kg", label: "Weight (kg)", type: "text" },
       { key: "pickup_date", label: "Pickup Date", type: "text" },
@@ -26,6 +28,7 @@ const categories = [
     slug: "legal",
     iconName: "Scale",
     description: "Lawyers, legal documentation, property registration, and court representation",
+    priceFloor: "1000",
     customFields: [
       { key: "case_type", label: "Case Type", type: "select", options: ["Civil", "Criminal", "Property", "Divorce", "Corporate", "IPR", "Labour"], required: false },
     ],
@@ -35,6 +38,7 @@ const categories = [
     slug: "travel",
     iconName: "Plane",
     description: "Flights, hotels, tour packages, visa assistance, and travel planning",
+    priceFloor: "500",
     customFields: [
       { key: "destination", label: "Destination", type: "text" },
       { key: "travel_date", label: "Travel Date", type: "text" },
@@ -46,6 +50,7 @@ const categories = [
     slug: "tech",
     iconName: "Code",
     description: "Web development, mobile apps, IT support, software, and tech solutions",
+    priceFloor: "500",
     customFields: [
       { key: "tech_stack", label: "Preferred Technology", type: "text" },
       { key: "timeline", label: "Deadline", type: "text" },
@@ -56,6 +61,7 @@ const categories = [
     slug: "education",
     iconName: "BookOpen",
     description: "Tutors, coaching, online courses, exam prep, and skill development",
+    priceFloor: "200",
     customFields: [
       { key: "subject", label: "Subject", type: "text" },
       { key: "grade_level", label: "Grade / Level", type: "text" },
@@ -66,6 +72,7 @@ const categories = [
     slug: "home",
     iconName: "Home",
     description: "Plumbing, electrical, cleaning, painting, carpentry, and repair services",
+    priceFloor: "200",
     customFields: [
       { key: "service_type", label: "Service Type", type: "select", options: ["Plumbing", "Electrical", "Cleaning", "Painting", "Carpentry", "AC Repair", "Pest Control", "Other"] },
     ],

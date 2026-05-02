@@ -8,6 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   useGetRequirement,
   getGetRequirementQueryKey,
@@ -15,12 +25,18 @@ import {
   useGetRequirementStats,
   getGetRequirementStatsQueryKey,
   getListBidsQueryKey,
+  useCreateDispute,
+  getListDisputesQueryKey,
+  useRepostRequirement,
+  getListRequirementsQueryKey,
+  type Bid,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { getCategoryIcon } from "@/lib/category-icons";
 import {
+  AlertCircle,
   CheckCircle2,
   Clock,
   ExternalLink,
@@ -28,10 +44,14 @@ import {
   IndianRupee,
   MapPin,
   MessageSquare,
+  RefreshCw,
+  Scale,
   Shield,
   Star,
   Trophy,
   User,
+  UserCheck,
+  Users,
   Zap,
 } from "lucide-react";
 
@@ -44,6 +64,9 @@ export default function RequirementDetail() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [sortBy, setSortBy] = useState<SortBy>("lowest_price");
+  const [disputeBid, setDisputeBid] = useState<Bid | null>(null);
+  const [disputeTitle, setDisputeTitle] = useState("");
+  const [disputeDesc, setDisputeDesc] = useState("");
 
   const { data: req, isLoading } = useGetRequirement(id, {
     query: { queryKey: getGetRequirementQueryKey(id) },
@@ -54,10 +77,13 @@ export default function RequirementDetail() {
   });
 
   const acceptBidMutation = useAcceptBid();
+  const createDisputeMutation = useCreateDispute();
+  const repostMutation = useRepostRequirement();
 
   const isOwner = user?.id === req?.buyerId;
   const isProvider = user?.role === "provider" || user?.role === "both";
   const canBid = isProvider && req?.status === "open" && !isOwner;
+  const canRepost = isOwner && req && ["accepted", "completed", "expired", "cancelled"].includes(req.status);
 
   const sortedBids = [...(req?.bids ?? [])].sort((a, b) => {
     if (a.isHighlighted && !b.isHighlighted) return -1;
@@ -77,6 +103,42 @@ export default function RequirementDetail() {
           qc.invalidateQueries({ queryKey: getGetRequirementQueryKey(id) });
         },
         onError: () => toast({ title: "Error", description: "Failed to accept bid", variant: "destructive" }),
+      }
+    );
+  };
+
+  const handleRaiseDispute = () => {
+    if (!disputeBid || !id || !disputeTitle.trim() || !disputeDesc.trim()) return;
+    createDisputeMutation.mutate(
+      { data: { requirementId: id, bidId: disputeBid.id, title: disputeTitle, description: disputeDesc } },
+      {
+        onSuccess: () => {
+          toast({ title: "Dispute raised", description: "The provider has been notified and must respond within 7 days." });
+          qc.invalidateQueries({ queryKey: getListDisputesQueryKey() });
+          setDisputeBid(null);
+          setDisputeTitle("");
+          setDisputeDesc("");
+          setLocation("/disputes");
+        },
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Failed to raise dispute";
+          toast({ title: "Error", description: msg, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleRepost = () => {
+    if (!id) return;
+    repostMutation.mutate(
+      { id },
+      {
+        onSuccess: (newReq) => {
+          toast({ title: "Requirement reposted!", description: "A new auction is live." });
+          qc.invalidateQueries({ queryKey: getListRequirementsQueryKey() });
+          setLocation(`/requirements/${newReq.id}`);
+        },
+        onError: () => toast({ title: "Error", description: "Failed to repost", variant: "destructive" }),
       }
     );
   };
@@ -121,6 +183,7 @@ export default function RequirementDetail() {
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <Badge variant="secondary" className="text-xs">{req.categoryName}</Badge>
                     {req.isHighTicket && <Badge className="text-xs bg-amber-500 text-white">High Value</Badge>}
+                    {req.isRecurring && <Badge variant="outline" className="text-xs border-blue-300 text-blue-600"><RefreshCw className="h-3 w-3 mr-1 inline" />Recurring</Badge>}
                     <Badge variant={req.status === "open" ? "default" : req.status === "accepted" ? "default" : "secondary"} className="text-xs capitalize">
                       {req.status}
                     </Badge>
@@ -144,6 +207,11 @@ export default function RequirementDetail() {
                   {req.maxBudget.toLocaleString("en-IN")}
                 </div>
                 <div className="text-xs text-muted-foreground">max budget</div>
+                {req.depositAmount && (
+                  <div className={`text-xs mt-0.5 font-medium ${req.depositPaid ? "text-green-600" : "text-orange-500"}`}>
+                    {req.depositPaid ? "✓ Deposit paid" : `⚠ ₹${req.depositAmount.toLocaleString("en-IN")} deposit req.`}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -178,8 +246,21 @@ export default function RequirementDetail() {
                 onClick={() => setLocation(`/bid/new/${id}`)}
                 data-testid="button-place-bid"
               >
-                <Gavel className="h-4 w-4 mr-1.5" />
+                <GavelIcon className="h-4 w-4 mr-1.5" />
                 Place Your Bid
+              </Button>
+            )}
+
+            {canRepost && (
+              <Button
+                variant="outline"
+                className="w-full mt-3 border-blue-300 text-blue-700 hover:bg-blue-50"
+                onClick={handleRepost}
+                disabled={repostMutation.isPending}
+                data-testid="button-repost"
+              >
+                <RefreshCw className="h-4 w-4 mr-1.5" />
+                {repostMutation.isPending ? "Reposting..." : "Repost this Requirement"}
               </Button>
             )}
 
@@ -232,6 +313,15 @@ export default function RequirementDetail() {
                         {bid.providerSubscriptionPlan && bid.providerSubscriptionPlan !== "free" && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">{bid.providerSubscriptionPlan}</Badge>
                         )}
+                        {"executorType" in bid && bid.executorType === "self" ? (
+                          <span title="Will personally execute the work" className="text-[10px] text-blue-600 flex items-center gap-0.5">
+                            <UserCheck className="h-3 w-3" /> Self
+                          </span>
+                        ) : "executorType" in bid && bid.executorType === "partial" ? (
+                          <span title="Partial sub-work declared" className="text-[10px] text-orange-500 flex items-center gap-0.5">
+                            <Users className="h-3 w-3" /> Partial
+                          </span>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                         {bid.providerAvgRating && (
@@ -258,6 +348,13 @@ export default function RequirementDetail() {
 
                 <p className="text-sm mt-2 text-foreground/80">{bid.message}</p>
 
+                {"subcontractorName" in bid && bid.subcontractorName && (
+                  <p className="text-xs mt-1.5 text-orange-600 bg-orange-50 dark:bg-orange-950/20 rounded-lg p-2">
+                    <Users className="h-3 w-3 inline mr-1" />
+                    Sub-specialist declared: {String(bid.subcontractorName)}
+                  </p>
+                )}
+
                 {bid.proofOfWork && (
                   <p className="text-xs mt-1.5 text-muted-foreground bg-muted/50 rounded-lg p-2">
                     <Trophy className="h-3 w-3 inline mr-1" />
@@ -278,11 +375,25 @@ export default function RequirementDetail() {
                   </Button>
                 )}
 
+                {/* Dispute button — buyer can raise dispute on accepted bid */}
+                {isOwner && bid.status === "accepted" && req.status !== "open" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 border-red-200 text-red-600 hover:bg-red-50"
+                    onClick={() => setDisputeBid(bid)}
+                    data-testid={`button-dispute-${bid.id}`}
+                  >
+                    <Scale className="h-3.5 w-3.5 mr-1.5" />
+                    Raise a Dispute
+                  </Button>
+                )}
+
                 {bid.status === "accepted" && bid.providerId && (
                   <div className="mt-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
                     <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-2">Bid Accepted! Connect with the provider:</p>
                     <a
-                      href={`https://wa.me/91${bid.providerName}?text=${encodeURIComponent(`Hi, I accepted your OmniBid for "${req.title}". Let's connect!`)}`}
+                      href={`https://wa.me/91?text=${encodeURIComponent(`Hi ${bid.providerName}, I accepted your OmniBid for "${req.title}". Let's connect!`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 dark:text-green-400 hover:underline"
@@ -298,11 +409,59 @@ export default function RequirementDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Raise Dispute Dialog */}
+      <Dialog open={!!disputeBid} onOpenChange={(o) => !o && setDisputeBid(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              Raise a Dispute
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              The provider will be notified and must respond within 7 days. Both parties then work to resolve.
+            </p>
+            <div>
+              <Label htmlFor="dispute-title">Dispute title</Label>
+              <Input
+                id="dispute-title"
+                className="mt-1.5"
+                placeholder="e.g. Work was not completed as agreed"
+                value={disputeTitle}
+                onChange={(e) => setDisputeTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="dispute-desc">Description</Label>
+              <Textarea
+                id="dispute-desc"
+                className="mt-1.5"
+                placeholder="Explain what went wrong in detail. Include dates, amounts, and what was agreed vs what was delivered..."
+                rows={5}
+                value={disputeDesc}
+                onChange={(e) => setDisputeDesc(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDisputeBid(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleRaiseDispute}
+              disabled={disputeTitle.length < 5 || disputeDesc.length < 10 || createDisputeMutation.isPending}
+            >
+              Raise Dispute
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
 
-function Gavel({ className }: { className?: string }) {
+function GavelIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />

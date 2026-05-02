@@ -43,6 +43,10 @@ export const requirementsTable = pgTable("requirements", {
   attachmentUrl: text("attachment_url"),
   winningBidId: uuid("winning_bid_id"),
   isHighTicket: boolean("is_high_ticket").notNull().default(false),
+  isRecurring: boolean("is_recurring").notNull().default(false),
+  recurringInterval: text("recurring_interval"),
+  depositAmount: decimal("deposit_amount", { precision: 12, scale: 2 }),
+  depositPaid: boolean("deposit_paid").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

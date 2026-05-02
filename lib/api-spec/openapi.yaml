@@ -17,6 +17,7 @@ tags:
   - name: notifications
   - name: subscriptions
   - name: dashboard
+  - name: disputes
 
 paths:
   /healthz:
@@ -510,6 +511,108 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProviderDashboard"
 
+  /requirements/{id}/repost:
+    post:
+      operationId: repostRequirement
+      tags: [requirements]
+      summary: Repost a completed/expired requirement as a new auction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Reposted requirement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+
+  # DISPUTES
+  /disputes:
+    get:
+      operationId: listDisputes
+      tags: [disputes]
+      summary: List disputes for current user
+      responses:
+        "200":
+          description: Disputes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Dispute"
+    post:
+      operationId: createDispute
+      tags: [disputes]
+      summary: Raise a dispute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDisputeBody"
+      responses:
+        "201":
+          description: Dispute created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dispute"
+
+  /disputes/{id}/respond:
+    post:
+      operationId: respondToDispute
+      tags: [disputes]
+      summary: Respond to a dispute
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RespondDisputeBody"
+      responses:
+        "200":
+          description: Response recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dispute"
+
+  /disputes/{id}/resolve:
+    post:
+      operationId: resolveDispute
+      tags: [disputes]
+      summary: Resolve a dispute
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveDisputeBody"
+      responses:
+        "200":
+          description: Dispute resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dispute"
+
   /requirements/stats/{id}:
     get:
       operationId: getRequirementStats
@@ -672,6 +775,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CategoryField"
+        priceFloor:
+          type: number
+          nullable: true
       required: [id, name, slug, iconName, description, customFields]
 
     CategoryField:
@@ -716,6 +822,11 @@ components:
         deadlineHours:
           type: number
         attachmentUrl:
+          type: string
+          nullable: true
+        isRecurring:
+          type: boolean
+        recurringInterval:
           type: string
           nullable: true
       required: [categoryId, title, description, city, state, maxBudget, deadlineHours]
@@ -767,6 +878,16 @@ components:
           nullable: true
         isHighTicket:
           type: boolean
+        isRecurring:
+          type: boolean
+        recurringInterval:
+          type: string
+          nullable: true
+        depositAmount:
+          type: number
+          nullable: true
+        depositPaid:
+          type: boolean
         bidCount:
           type: number
         lowestBid:
@@ -776,7 +897,7 @@ components:
           type: string
         createdAt:
           type: string
-      required: [id, buyerId, categoryId, categoryName, categorySlug, categoryIconName, title, description, city, state, maxBudget, deadlineHours, auctionEndsAt, status, isHighTicket, bidCount, buyerName, createdAt]
+      required: [id, buyerId, categoryId, categoryName, categorySlug, categoryIconName, title, description, city, state, maxBudget, deadlineHours, auctionEndsAt, status, isHighTicket, isRecurring, depositPaid, bidCount, buyerName, createdAt]
 
     RequirementListResponse:
       type: object
@@ -848,6 +969,12 @@ components:
           type: string
         isHighlighted:
           type: boolean
+        executorType:
+          type: string
+          enum: [self, partial]
+        subcontractorName:
+          type: string
+          nullable: true
       required: [bidAmount, message, estimatedCompletion]
 
     Bid:
@@ -876,6 +1003,12 @@ components:
           enum: [active, accepted, rejected, withdrawn]
         isHighlighted:
           type: boolean
+        executorType:
+          type: string
+          enum: [self, partial]
+        subcontractorName:
+          type: string
+          nullable: true
         providerName:
           type: string
         providerCity:
@@ -895,7 +1028,7 @@ components:
           nullable: true
         createdAt:
           type: string
-      required: [id, requirementId, providerId, bidAmount, message, estimatedCompletion, status, isHighlighted, providerName, providerTrustScore, providerIsVerified, providerReviewCount, createdAt]
+      required: [id, requirementId, providerId, bidAmount, message, estimatedCompletion, status, isHighlighted, executorType, providerName, providerTrustScore, providerIsVerified, providerReviewCount, createdAt]
 
     BidWithRequirement:
       allOf:
@@ -1051,3 +1184,88 @@ components:
         wonCount:
           type: number
       required: [categoryName, bidCount, wonCount]
+
+    Dispute:
+      type: object
+      properties:
+        id:
+          type: string
+        requirementId:
+          type: string
+        requirementTitle:
+          type: string
+        bidId:
+          type: string
+        raisedById:
+          type: string
+        raisedByName:
+          type: string
+        respondentId:
+          type: string
+        respondentName:
+          type: string
+        status:
+          type: string
+          enum: [open, provider_responded, resolved, cancelled]
+        title:
+          type: string
+        description:
+          type: string
+        evidenceUrl:
+          type: string
+          nullable: true
+        response:
+          type: string
+          nullable: true
+        responseEvidenceUrl:
+          type: string
+          nullable: true
+        resolution:
+          type: string
+          enum: [buyer_wins, provider_wins, mutual]
+          nullable: true
+        resolutionNote:
+          type: string
+          nullable: true
+        resolvedAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, requirementId, requirementTitle, bidId, raisedById, raisedByName, respondentId, respondentName, status, title, description, createdAt]
+
+    CreateDisputeBody:
+      type: object
+      properties:
+        requirementId:
+          type: string
+        bidId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        evidenceUrl:
+          type: string
+          nullable: true
+      required: [requirementId, bidId, title, description]
+
+    RespondDisputeBody:
+      type: object
+      properties:
+        response:
+          type: string
+        responseEvidenceUrl:
+          type: string
+          nullable: true
+      required: [response]
+
+    ResolveDisputeBody:
+      type: object
+      properties:
+        resolution:
+          type: string
+          enum: [buyer_wins, provider_wins, mutual]
+        resolutionNote:
+          type: string
+      required: [resolution, resolutionNote]

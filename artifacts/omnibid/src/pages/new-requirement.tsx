@@ -16,8 +16,16 @@ import { useAuth } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { getCategoryIcon } from "@/lib/category-icons";
-import { IndianRupee, Loader2, PlusCircle, Clock } from "lucide-react";
+import { IndianRupee, Loader2, PlusCircle, Clock, RefreshCw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import type { Category } from "@workspace/api-client-react";
+
+const RECURRING_INTERVALS = [
+  { value: "weekly", label: "Every week" },
+  { value: "biweekly", label: "Every 2 weeks" },
+  { value: "monthly", label: "Every month" },
+  { value: "quarterly", label: "Every quarter" },
+];
 
 const schema = z.object({
   categoryId: z.string().min(1, "Select a category"),
@@ -28,6 +36,8 @@ const schema = z.object({
   maxBudget: z.number().min(100, "Budget must be at least ₹100"),
   deadlineHours: z.number().min(1).max(72),
   customData: z.record(z.string()).optional(),
+  isRecurring: z.boolean(),
+  recurringInterval: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -61,11 +71,14 @@ export default function NewRequirement() {
       maxBudget: 5000,
       deadlineHours: 24,
       customData: {},
+      isRecurring: false,
+      recurringInterval: "",
     },
   });
 
   const selectedCategoryId = form.watch("categoryId");
   const maxBudget = form.watch("maxBudget");
+  const isRecurring = form.watch("isRecurring");
   const selectedCategory = categories?.find((c: Category) => c.id === selectedCategoryId);
 
   const onSubmit = (data: FormData) => {
@@ -80,6 +93,8 @@ export default function NewRequirement() {
           maxBudget: data.maxBudget,
           deadlineHours: data.deadlineHours,
           customData: data.customData,
+          isRecurring: data.isRecurring,
+          recurringInterval: data.recurringInterval || undefined,
         },
       },
       {
@@ -278,6 +293,49 @@ export default function NewRequirement() {
                     <FormMessage />
                   </FormItem>
                 )} />
+              </CardContent>
+            </Card>
+
+            {/* Recurring */}
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <FormField control={form.control} name="isRecurring" render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <RefreshCw className="h-4 w-4 text-blue-600" />
+                        Recurring Requirement
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        One-click repost when this auction closes. E.g. weekly office cleaning.
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-recurring" />
+                    </FormControl>
+                  </FormItem>
+                )} />
+
+                {isRecurring && (
+                  <FormField control={form.control} name="recurringInterval" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">How often?</FormLabel>
+                      <div className="grid grid-cols-2 gap-2 mt-1">
+                        {RECURRING_INTERVALS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => field.onChange(opt.value)}
+                            className={`py-2 px-3 rounded-lg border text-xs font-medium transition-all ${field.value === opt.value ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20 text-blue-700" : "border-border hover:border-blue-300"}`}
+                            data-testid={`button-interval-${opt.value}`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </FormItem>
+                  )} />
+                )}
               </CardContent>
             </Card>
 

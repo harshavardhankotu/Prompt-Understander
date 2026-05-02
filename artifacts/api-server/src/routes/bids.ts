@@ -21,6 +21,8 @@ async function formatBid(b: typeof bidsTable.$inferSelect) {
     proofOfWork: b.proofOfWork,
     portfolioUrl: b.portfolioUrl,
     estimatedCompletion: b.estimatedCompletion,
+    executorType: b.executorType,
+    subcontractorName: b.subcontractorName,
     status: b.status,
     isHighlighted: b.isHighlighted,
     providerName: provider?.name ?? "Unknown",
@@ -59,11 +61,23 @@ router.post("/requirements/:requirementId/bids", requireAuth, async (req, res): 
   const [requirement] = await db.select().from(requirementsTable).where(eq(requirementsTable.id, requirementId));
   if (!requirement || requirement.status !== "open") { res.status(400).json({ error: "Requirement not open" }); return; }
 
+  // Price floor check
+  const [category] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, requirement.categoryId));
+  if (category?.priceFloor && parsed.data.bidAmount < Number(category.priceFloor)) {
+    res.status(400).json({ error: `Bid amount is below the minimum floor of ₹${category.priceFloor} for ${category.name}` });
+    return;
+  }
+
   const [sub] = await db.select().from(providerSubscriptionsTable).where(eq(providerSubscriptionsTable.providerId, req.user!.userId));
   if (sub && sub.bidsRemaining <= 0 && sub.plan === "free") {
     res.status(403).json({ error: "No bids remaining on free plan. Please upgrade." });
     return;
   }
+
+  // New Provider Boost: auto-highlight first 10 bids
+  const [allBidsByProvider] = await db.select({ count: count() }).from(bidsTable).where(eq(bidsTable.providerId, req.user!.userId));
+  const isNewProvider = Number(allBidsByProvider?.count ?? 0) < 10;
+  const shouldHighlight = parsed.data.isHighlighted || isNewProvider;
 
   const [bid] = await db.insert(bidsTable).values({
     requirementId,
@@ -73,7 +87,9 @@ router.post("/requirements/:requirementId/bids", requireAuth, async (req, res): 
     proofOfWork: parsed.data.proofOfWork ?? null,
     portfolioUrl: parsed.data.portfolioUrl ?? null,
     estimatedCompletion: parsed.data.estimatedCompletion,
-    isHighlighted: parsed.data.isHighlighted ?? false,
+    executorType: (parsed.data.executorType as "self" | "partial") ?? "self",
+    subcontractorName: parsed.data.subcontractorName ?? null,
+    isHighlighted: shouldHighlight,
   }).returning();
 
   if (sub && sub.plan === "free") {
@@ -126,6 +142,7 @@ router.get("/bids/my", requireAuth, async (req, res): Promise<void> => {
         attachmentUrl: req2.attachmentUrl,
         winningBidId: req2.winningBidId,
         isHighTicket: req2.isHighTicket,
+        isRecurring: req2.isRecurring,
         bidCount: Number(bidStats?.count ?? 0),
         lowestBid: bidStats?.minBid ? Number(bidStats.minBid) : null,
         buyerName: buyer.name,

@@ -24,8 +24,10 @@ import type {
   BuyerDashboard,
   Category,
   CreateBidBody,
+  CreateDisputeBody,
   CreateRequirementBody,
   CreateReviewBody,
+  Dispute,
   HealthStatus,
   ListBidsParams,
   ListRequirementsParams,
@@ -40,6 +42,8 @@ import type {
   RequirementDetail,
   RequirementListResponse,
   RequirementStats,
+  ResolveDisputeBody,
+  RespondDisputeBody,
   Review,
   UpdateUserBody,
   UpgradeSubscriptionBody,
@@ -2202,6 +2206,425 @@ export function useGetProviderDashboard<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Repost a completed/expired requirement as a new auction
+ */
+export const getRepostRequirementUrl = (id: string) => {
+  return `/api/requirements/${id}/repost`;
+};
+
+export const repostRequirement = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Requirement> => {
+  return customFetch<Requirement>(getRepostRequirementUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRepostRequirementMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof repostRequirement>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof repostRequirement>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["repostRequirement"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof repostRequirement>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return repostRequirement(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RepostRequirementMutationResult = NonNullable<
+  Awaited<ReturnType<typeof repostRequirement>>
+>;
+
+export type RepostRequirementMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Repost a completed/expired requirement as a new auction
+ */
+export const useRepostRequirement = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof repostRequirement>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof repostRequirement>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getRepostRequirementMutationOptions(options));
+};
+
+/**
+ * @summary List disputes for current user
+ */
+export const getListDisputesUrl = () => {
+  return `/api/disputes`;
+};
+
+export const listDisputes = async (
+  options?: RequestInit,
+): Promise<Dispute[]> => {
+  return customFetch<Dispute[]>(getListDisputesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDisputesQueryKey = () => {
+  return [`/api/disputes`] as const;
+};
+
+export const getListDisputesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDisputes>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDisputes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDisputesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listDisputes>>> = ({
+    signal,
+  }) => listDisputes({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDisputes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDisputesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDisputes>>
+>;
+export type ListDisputesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List disputes for current user
+ */
+
+export function useListDisputes<
+  TData = Awaited<ReturnType<typeof listDisputes>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDisputes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDisputesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Raise a dispute
+ */
+export const getCreateDisputeUrl = () => {
+  return `/api/disputes`;
+};
+
+export const createDispute = async (
+  createDisputeBody: CreateDisputeBody,
+  options?: RequestInit,
+): Promise<Dispute> => {
+  return customFetch<Dispute>(getCreateDisputeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createDisputeBody),
+  });
+};
+
+export const getCreateDisputeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDispute>>,
+    TError,
+    { data: BodyType<CreateDisputeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createDispute>>,
+  TError,
+  { data: BodyType<CreateDisputeBody> },
+  TContext
+> => {
+  const mutationKey = ["createDispute"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createDispute>>,
+    { data: BodyType<CreateDisputeBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createDispute(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateDisputeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createDispute>>
+>;
+export type CreateDisputeMutationBody = BodyType<CreateDisputeBody>;
+export type CreateDisputeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Raise a dispute
+ */
+export const useCreateDispute = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDispute>>,
+    TError,
+    { data: BodyType<CreateDisputeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createDispute>>,
+  TError,
+  { data: BodyType<CreateDisputeBody> },
+  TContext
+> => {
+  return useMutation(getCreateDisputeMutationOptions(options));
+};
+
+/**
+ * @summary Respond to a dispute
+ */
+export const getRespondToDisputeUrl = (id: string) => {
+  return `/api/disputes/${id}/respond`;
+};
+
+export const respondToDispute = async (
+  id: string,
+  respondDisputeBody: RespondDisputeBody,
+  options?: RequestInit,
+): Promise<Dispute> => {
+  return customFetch<Dispute>(getRespondToDisputeUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(respondDisputeBody),
+  });
+};
+
+export const getRespondToDisputeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof respondToDispute>>,
+    TError,
+    { id: string; data: BodyType<RespondDisputeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof respondToDispute>>,
+  TError,
+  { id: string; data: BodyType<RespondDisputeBody> },
+  TContext
+> => {
+  const mutationKey = ["respondToDispute"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof respondToDispute>>,
+    { id: string; data: BodyType<RespondDisputeBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return respondToDispute(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RespondToDisputeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof respondToDispute>>
+>;
+export type RespondToDisputeMutationBody = BodyType<RespondDisputeBody>;
+export type RespondToDisputeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Respond to a dispute
+ */
+export const useRespondToDispute = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof respondToDispute>>,
+    TError,
+    { id: string; data: BodyType<RespondDisputeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof respondToDispute>>,
+  TError,
+  { id: string; data: BodyType<RespondDisputeBody> },
+  TContext
+> => {
+  return useMutation(getRespondToDisputeMutationOptions(options));
+};
+
+/**
+ * @summary Resolve a dispute
+ */
+export const getResolveDisputeUrl = (id: string) => {
+  return `/api/disputes/${id}/resolve`;
+};
+
+export const resolveDispute = async (
+  id: string,
+  resolveDisputeBody: ResolveDisputeBody,
+  options?: RequestInit,
+): Promise<Dispute> => {
+  return customFetch<Dispute>(getResolveDisputeUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(resolveDisputeBody),
+  });
+};
+
+export const getResolveDisputeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resolveDispute>>,
+    TError,
+    { id: string; data: BodyType<ResolveDisputeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resolveDispute>>,
+  TError,
+  { id: string; data: BodyType<ResolveDisputeBody> },
+  TContext
+> => {
+  const mutationKey = ["resolveDispute"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resolveDispute>>,
+    { id: string; data: BodyType<ResolveDisputeBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return resolveDispute(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResolveDisputeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resolveDispute>>
+>;
+export type ResolveDisputeMutationBody = BodyType<ResolveDisputeBody>;
+export type ResolveDisputeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Resolve a dispute
+ */
+export const useResolveDispute = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resolveDispute>>,
+    TError,
+    { id: string; data: BodyType<ResolveDisputeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resolveDispute>>,
+  TError,
+  { id: string; data: BodyType<ResolveDisputeBody> },
+  TContext
+> => {
+  return useMutation(getResolveDisputeMutationOptions(options));
+};
 
 /**
  * @summary Get bid stats for a requirement

@@ -17,7 +17,7 @@ import {
   LayoutDashboard,
   LogOut,
   PlusCircle,
-  Search,
+  Scale,
   User,
   CreditCard,
 } from "lucide-react";
@@ -128,6 +128,10 @@ export default function Layout({ children }: LayoutProps) {
                           Plans
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem onClick={() => setLocation("/disputes")} data-testid="menu-disputes">
+                        <Scale className="h-4 w-4 mr-2" />
+                        Disputes
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout} className="text-destructive" data-testid="menu-logout">
                         <LogOut className="h-4 w-4 mr-2" />

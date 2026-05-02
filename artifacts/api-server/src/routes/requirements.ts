@@ -28,6 +28,10 @@ function formatReq(r: typeof requirementsTable.$inferSelect, cat: typeof categor
     attachmentUrl: r.attachmentUrl,
     winningBidId: r.winningBidId,
     isHighTicket: r.isHighTicket,
+    isRecurring: r.isRecurring,
+    recurringInterval: r.recurringInterval,
+    depositAmount: r.depositAmount ? Number(r.depositAmount) : null,
+    depositPaid: r.depositPaid,
     bidCount,
     lowestBid,
     buyerName: buyer.name,
@@ -85,9 +89,10 @@ router.post("/requirements", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const { categoryId, title, description, customData, city, state, pincode, maxBudget, deadlineHours, attachmentUrl } = parsed.data;
+  const { categoryId, title, description, customData, city, state, pincode, maxBudget, deadlineHours, attachmentUrl, isRecurring, recurringInterval } = parsed.data;
   const auctionEndsAt = new Date(Date.now() + deadlineHours * 60 * 60 * 1000);
   const isHighTicket = maxBudget > 10000;
+  const depositAmount = isHighTicket ? String(Math.round(maxBudget * 0.1)) : null;
 
   const [requirement] = await db.insert(requirementsTable).values({
     buyerId: req.user!.userId,
@@ -102,6 +107,9 @@ router.post("/requirements", requireAuth, async (req, res): Promise<void> => {
     deadlineHours,
     auctionEndsAt,
     isHighTicket,
+    isRecurring: isRecurring ?? false,
+    recurringInterval: recurringInterval ?? null,
+    depositAmount,
     attachmentUrl: attachmentUrl ?? null,
   }).returning();
 
@@ -185,6 +193,8 @@ router.get("/requirements/:id", optionalAuth, async (req, res): Promise<void> =>
       proofOfWork: b.proofOfWork,
       portfolioUrl: b.portfolioUrl,
       estimatedCompletion: b.estimatedCompletion,
+      executorType: b.executorType,
+      subcontractorName: b.subcontractorName,
       status: b.status,
       isHighlighted: b.isHighlighted,
       providerName: provider?.name ?? "Unknown",
@@ -228,6 +238,7 @@ router.get("/requirements/:id", optionalAuth, async (req, res): Promise<void> =>
       iconName: cat.iconName,
       description: cat.description,
       customFields: cat.customFields,
+      priceFloor: cat.priceFloor ? Number(cat.priceFloor) : null,
     },
   });
 });
@@ -268,6 +279,42 @@ router.post("/requirements/:id/accept-bid", requireAuth, async (req, res): Promi
   const [buyer] = await db.select().from(usersTable).where(eq(usersTable.id, updated.buyerId));
   const [bidStats] = await db.select({ count: count(), minBid: min(bidsTable.bidAmount) }).from(bidsTable).where(eq(bidsTable.requirementId, id));
   res.json(formatReq(updated, cat, buyer, Number(bidStats?.count ?? 0), bidStats?.minBid ? Number(bidStats.minBid) : null));
+});
+
+router.post("/requirements/:id/repost", requireAuth, async (req, res): Promise<void> => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const [requirement] = await db.select().from(requirementsTable).where(eq(requirementsTable.id, id));
+  if (!requirement) { res.status(404).json({ error: "Not found" }); return; }
+  if (requirement.buyerId !== req.user!.userId) { res.status(403).json({ error: "Forbidden" }); return; }
+  if (!["expired", "completed", "cancelled", "accepted"].includes(requirement.status)) {
+    res.status(400).json({ error: "Can only repost completed, expired, accepted, or cancelled requirements" }); return;
+  }
+
+  const auctionEndsAt = new Date(Date.now() + requirement.deadlineHours * 60 * 60 * 1000);
+
+  const [reposted] = await db.insert(requirementsTable).values({
+    buyerId: requirement.buyerId,
+    categoryId: requirement.categoryId,
+    title: requirement.title,
+    description: requirement.description,
+    customData: requirement.customData as Record<string, unknown> | null,
+    city: requirement.city,
+    state: requirement.state,
+    pincode: requirement.pincode,
+    maxBudget: requirement.maxBudget,
+    deadlineHours: requirement.deadlineHours,
+    auctionEndsAt,
+    isHighTicket: requirement.isHighTicket,
+    isRecurring: requirement.isRecurring,
+    recurringInterval: requirement.recurringInterval,
+    depositAmount: requirement.depositAmount,
+    attachmentUrl: requirement.attachmentUrl,
+  }).returning();
+
+  const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, reposted.categoryId));
+  const [buyer] = await db.select().from(usersTable).where(eq(usersTable.id, reposted.buyerId));
+
+  res.status(201).json(formatReq(reposted, cat, buyer, 0, null));
 });
 
 export default router;

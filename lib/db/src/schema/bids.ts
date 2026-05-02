@@ -19,6 +19,11 @@ export const bidStatusEnum = pgEnum("bid_status", [
   "withdrawn",
 ]);
 
+export const executorTypeEnum = pgEnum("executor_type", [
+  "self",
+  "partial",
+]);
+
 export const bidsTable = pgTable("bids", {
   id: uuid("id").primaryKey().defaultRandom(),
   requirementId: uuid("requirement_id")
@@ -32,6 +37,8 @@ export const bidsTable = pgTable("bids", {
   proofOfWork: text("proof_of_work"),
   portfolioUrl: text("portfolio_url"),
   estimatedCompletion: text("estimated_completion").notNull(),
+  executorType: executorTypeEnum("executor_type").notNull().default("self"),
+  subcontractorName: text("subcontractor_name"),
   status: bidStatusEnum("status").notNull().default("active"),
   isHighlighted: boolean("is_highlighted").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

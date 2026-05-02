@@ -5,3 +5,4 @@ export * from "./bids";
 export * from "./reviews";
 export * from "./provider_subscriptions";
 export * from "./notifications";
+export * from "./disputes";
