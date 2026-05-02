@@ -1,22 +1,29 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: OmniBid India API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: users
+  - name: categories
+  - name: requirements
+  - name: bids
+  - name: reviews
+  - name: notifications
+  - name: subscriptions
+  - name: dashboard
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +31,504 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # AUTH
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterBody"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+
+  # USERS
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /users/{id}/update:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  # CATEGORIES
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List all categories
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+  # REQUIREMENTS
+  /requirements:
+    get:
+      operationId: listRequirements
+      tags: [requirements]
+      summary: List open requirements (live feed)
+      parameters:
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: number
+        - name: offset
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Requirements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequirementListResponse"
+    post:
+      operationId: createRequirement
+      tags: [requirements]
+      summary: Post a new requirement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRequirementBody"
+      responses:
+        "201":
+          description: Created requirement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+
+  /requirements/my:
+    get:
+      operationId: listMyRequirements
+      tags: [requirements]
+      summary: List requirements posted by current user
+      responses:
+        "200":
+          description: My requirements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Requirement"
+
+  /requirements/{id}:
+    get:
+      operationId: getRequirement
+      tags: [requirements]
+      summary: Get requirement detail with bids
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Requirement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequirementDetail"
+
+  /requirements/{id}/cancel:
+    post:
+      operationId: cancelRequirement
+      tags: [requirements]
+      summary: Cancel a requirement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+
+  /requirements/{id}/accept-bid:
+    post:
+      operationId: acceptBid
+      tags: [requirements]
+      summary: Accept a bid and close auction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptBidBody"
+      responses:
+        "200":
+          description: Bid accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+
+  # BIDS
+  /requirements/{requirementId}/bids:
+    get:
+      operationId: listBids
+      tags: [bids]
+      summary: List bids for a requirement
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [lowest_price, highest_rating, fastest_start]
+      responses:
+        "200":
+          description: Bids
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bid"
+    post:
+      operationId: createBid
+      tags: [bids]
+      summary: Place a bid on a requirement
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBidBody"
+      responses:
+        "201":
+          description: Bid placed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bid"
+
+  /bids/{id}/withdraw:
+    post:
+      operationId: withdrawBid
+      tags: [bids]
+      summary: Withdraw a bid
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bid withdrawn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bid"
+
+  /bids/my:
+    get:
+      operationId: listMyBids
+      tags: [bids]
+      summary: List bids placed by current provider
+      responses:
+        "200":
+          description: My bids
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BidWithRequirement"
+
+  # REVIEWS
+  /reviews:
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Submit a review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewBody"
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+
+  /users/{id}/reviews:
+    get:
+      operationId: getUserReviews
+      tags: [reviews]
+      summary: Get reviews for a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Review"
+
+  # NOTIFICATIONS
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for current user
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/mark-read:
+    post:
+      operationId: markNotificationsRead
+      tags: [notifications]
+      summary: Mark notifications as read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkReadBody"
+      responses:
+        "200":
+          description: Marked read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # SUBSCRIPTIONS
+  /subscriptions/my:
+    get:
+      operationId: getMySubscription
+      tags: [subscriptions]
+      summary: Get current provider's subscription
+      responses:
+        "200":
+          description: Subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderSubscription"
+
+  /subscriptions/upgrade:
+    post:
+      operationId: upgradeSubscription
+      tags: [subscriptions]
+      summary: Upgrade subscription plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpgradeSubscriptionBody"
+      responses:
+        "200":
+          description: Upgraded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderSubscription"
+
+  # DASHBOARD / WOW ENDPOINTS
+  /dashboard/buyer:
+    get:
+      operationId: getBuyerDashboard
+      tags: [dashboard]
+      summary: Buyer dashboard summary
+      responses:
+        "200":
+          description: Buyer stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuyerDashboard"
+
+  /dashboard/provider:
+    get:
+      operationId: getProviderDashboard
+      tags: [dashboard]
+      summary: Provider dashboard summary
+      responses:
+        "200":
+          description: Provider stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderDashboard"
+
+  /requirements/stats/{id}:
+    get:
+      operationId: getRequirementStats
+      tags: [requirements]
+      summary: Get bid stats for a requirement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequirementStats"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +536,518 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    RegisterBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [buyer, provider, both]
+        city:
+          type: string
+        state:
+          type: string
+        pincode:
+          type: string
+      required: [name, email, password, role]
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required: [email, password]
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+      required: [user, token]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [buyer, provider, both]
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        pincode:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        trustScore:
+          type: number
+        isVerified:
+          type: boolean
+        aadhaarVerified:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, name, email, role, trustScore, isVerified, aadhaarVerified, createdAt]
+
+    UserProfile:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          properties:
+            reviewCount:
+              type: number
+            avgRating:
+              type: number
+              nullable: true
+            totalBidsWon:
+              type: number
+            subscriptionPlan:
+              type: string
+              nullable: true
+          required: [reviewCount, totalBidsWon]
+
+    UpdateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        pincode:
+          type: string
+        avatarUrl:
+          type: string
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        iconName:
+          type: string
+        description:
+          type: string
+        customFields:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryField"
+      required: [id, name, slug, iconName, description, customFields]
+
+    CategoryField:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [text, number, select, boolean, date]
+        options:
+          type: array
+          items:
+            type: string
+          nullable: true
+        required:
+          type: boolean
+      required: [key, label, type, required]
+
+    CreateRequirementBody:
+      type: object
+      properties:
+        categoryId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        customData:
+          type: object
+          additionalProperties: true
+        city:
+          type: string
+        state:
+          type: string
+        pincode:
+          type: string
+        maxBudget:
+          type: number
+        deadlineHours:
+          type: number
+        attachmentUrl:
+          type: string
+          nullable: true
+      required: [categoryId, title, description, city, state, maxBudget, deadlineHours]
+
+    Requirement:
+      type: object
+      properties:
+        id:
+          type: string
+        buyerId:
+          type: string
+        categoryId:
+          type: string
+        categoryName:
+          type: string
+        categorySlug:
+          type: string
+        categoryIconName:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        customData:
+          type: object
+          additionalProperties: true
+          nullable: true
+        city:
+          type: string
+        state:
+          type: string
+        pincode:
+          type: string
+          nullable: true
+        maxBudget:
+          type: number
+        deadlineHours:
+          type: number
+        auctionEndsAt:
+          type: string
+        status:
+          type: string
+          enum: [open, accepted, completed, expired, cancelled]
+        attachmentUrl:
+          type: string
+          nullable: true
+        winningBidId:
+          type: string
+          nullable: true
+        isHighTicket:
+          type: boolean
+        bidCount:
+          type: number
+        lowestBid:
+          type: number
+          nullable: true
+        buyerName:
+          type: string
+        createdAt:
+          type: string
+      required: [id, buyerId, categoryId, categoryName, categorySlug, categoryIconName, title, description, city, state, maxBudget, deadlineHours, auctionEndsAt, status, isHighTicket, bidCount, buyerName, createdAt]
+
+    RequirementListResponse:
+      type: object
+      properties:
+        requirements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Requirement"
+        total:
+          type: number
+      required: [requirements, total]
+
+    RequirementDetail:
+      allOf:
+        - $ref: "#/components/schemas/Requirement"
+        - type: object
+          properties:
+            buyer:
+              $ref: "#/components/schemas/User"
+            bids:
+              type: array
+              items:
+                $ref: "#/components/schemas/Bid"
+            category:
+              $ref: "#/components/schemas/Category"
+          required: [buyer, bids, category]
+
+    AcceptBidBody:
+      type: object
+      properties:
+        bidId:
+          type: string
+      required: [bidId]
+
+    RequirementStats:
+      type: object
+      properties:
+        requirementId:
+          type: string
+        bidCount:
+          type: number
+        lowestBid:
+          type: number
+          nullable: true
+        highestBid:
+          type: number
+          nullable: true
+        avgBid:
+          type: number
+          nullable: true
+        isBidWar:
+          type: boolean
+      required: [requirementId, bidCount, isBidWar]
+
+    CreateBidBody:
+      type: object
+      properties:
+        bidAmount:
+          type: number
+        message:
+          type: string
+        proofOfWork:
+          type: string
+          nullable: true
+        portfolioUrl:
+          type: string
+          nullable: true
+        estimatedCompletion:
+          type: string
+        isHighlighted:
+          type: boolean
+      required: [bidAmount, message, estimatedCompletion]
+
+    Bid:
+      type: object
+      properties:
+        id:
+          type: string
+        requirementId:
+          type: string
+        providerId:
+          type: string
+        bidAmount:
+          type: number
+        message:
+          type: string
+        proofOfWork:
+          type: string
+          nullable: true
+        portfolioUrl:
+          type: string
+          nullable: true
+        estimatedCompletion:
+          type: string
+        status:
+          type: string
+          enum: [active, accepted, rejected, withdrawn]
+        isHighlighted:
+          type: boolean
+        providerName:
+          type: string
+        providerCity:
+          type: string
+          nullable: true
+        providerTrustScore:
+          type: number
+        providerIsVerified:
+          type: boolean
+        providerAvgRating:
+          type: number
+          nullable: true
+        providerReviewCount:
+          type: number
+        providerSubscriptionPlan:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, requirementId, providerId, bidAmount, message, estimatedCompletion, status, isHighlighted, providerName, providerTrustScore, providerIsVerified, providerReviewCount, createdAt]
+
+    BidWithRequirement:
+      allOf:
+        - $ref: "#/components/schemas/Bid"
+        - type: object
+          properties:
+            requirement:
+              $ref: "#/components/schemas/Requirement"
+          required: [requirement]
+
+    CreateReviewBody:
+      type: object
+      properties:
+        requirementId:
+          type: string
+        revieweeId:
+          type: string
+        rating:
+          type: number
+        comment:
+          type: string
+      required: [requirementId, revieweeId, rating]
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+        requirementId:
+          type: string
+        reviewerId:
+          type: string
+        revieweeId:
+          type: string
+        rating:
+          type: number
+        comment:
+          type: string
+          nullable: true
+        reviewerName:
+          type: string
+        createdAt:
+          type: string
+      required: [id, requirementId, reviewerId, revieweeId, rating, reviewerName, createdAt]
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+        message:
+          type: string
+        isRead:
+          type: boolean
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, userId, type, message, isRead, createdAt]
+
+    MarkReadBody:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+      required: [ids]
+
+    ProviderSubscription:
+      type: object
+      properties:
+        id:
+          type: string
+        providerId:
+          type: string
+        plan:
+          type: string
+          enum: [free, starter, pro]
+        planStartedAt:
+          type: string
+          nullable: true
+        planEndsAt:
+          type: string
+          nullable: true
+        bidsRemaining:
+          type: number
+      required: [id, providerId, plan, bidsRemaining]
+
+    UpgradeSubscriptionBody:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum: [free, starter, pro]
+      required: [plan]
+
+    BuyerDashboard:
+      type: object
+      properties:
+        openRequirements:
+          type: number
+        acceptedRequirements:
+          type: number
+        completedRequirements:
+          type: number
+        totalSpent:
+          type: number
+        recentRequirements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Requirement"
+      required: [openRequirements, acceptedRequirements, completedRequirements, totalSpent, recentRequirements]
+
+    ProviderDashboard:
+      type: object
+      properties:
+        activeBids:
+          type: number
+        wonBids:
+          type: number
+        totalEarned:
+          type: number
+        winRate:
+          type: number
+        bidsRemaining:
+          type: number
+        subscriptionPlan:
+          type: string
+        recentBids:
+          type: array
+          items:
+            $ref: "#/components/schemas/BidWithRequirement"
+        categoryBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryBidCount"
+      required: [activeBids, wonBids, totalEarned, winRate, bidsRemaining, subscriptionPlan, recentBids, categoryBreakdown]
+
+    CategoryBidCount:
+      type: object
+      properties:
+        categoryName:
+          type: string
+        bidCount:
+          type: number
+        wonCount:
+          type: number
+      required: [categoryName, bidCount, wonCount]
