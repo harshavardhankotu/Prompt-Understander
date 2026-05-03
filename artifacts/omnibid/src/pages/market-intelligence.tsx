@@ -38,7 +38,7 @@ const saturationColors: Record<string, string> = {
 
 export default function MarketIntelligence() {
   const { user } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   const isProvider = ["provider", "both", "solo_provider", "agency_provider"].includes(user?.role ?? "");
   const isBuyer = ["buyer", "both", "retail_buyer", "enterprise_buyer"].includes(user?.role ?? "");
@@ -46,7 +46,7 @@ export default function MarketIntelligence() {
   const { data, isLoading } = useQuery({
     queryKey: ["market-intelligence", selectedCategory],
     queryFn: () =>
-      authFetch(`/api/market/intelligence${selectedCategory ? `?categorySlug=${selectedCategory}` : ""}`).then(r => r.json()),
+      authFetch(`/api/market/intelligence${selectedCategory && selectedCategory !== "all" ? `?categorySlug=${selectedCategory}` : ""}`).then(r => r.json()),
     enabled: !!user,
   });
 
@@ -73,7 +73,7 @@ export default function MarketIntelligence() {
                 <SelectValue placeholder="All categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All categories</SelectItem>
+                <SelectItem value="all">All categories</SelectItem>
                 {CATEGORIES.map(c => <SelectItem key={c.slug} value={c.slug}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>

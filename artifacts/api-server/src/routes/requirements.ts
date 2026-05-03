@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc, count, min, sql } from "drizzle-orm";
-import { db, requirementsTable, categoriesTable, usersTable, bidsTable } from "@workspace/db";
+import { eq, and, desc, count, min, sql, ilike, or } from "drizzle-orm";
+import { db, requirementsTable, categoriesTable, usersTable, bidsTable, reviewsTable, providerSubscriptionsTable } from "@workspace/db";
 import { CreateRequirementBody, ListRequirementsQueryParams, AcceptBidBody } from "@workspace/api-zod";
 import { requireAuth, optionalAuth } from "../middlewares/auth";
 import { notifyUser } from "../lib/notifications";
+import { avg } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -52,6 +53,14 @@ router.get("/requirements", optionalAuth, async (req, res): Promise<void> => {
     if (params.data.city) conditions.push(eq(requirementsTable.city, params.data.city as string));
     if (params.data.status) conditions.push(eq(requirementsTable.status, params.data.status as "open" | "accepted" | "completed" | "expired" | "cancelled"));
     else conditions.push(eq(requirementsTable.status, "open"));
+    const search = (params.data as { search?: string }).search;
+    if (search) {
+      conditions.push(or(
+        ilike(requirementsTable.title, `%${search}%`),
+        ilike(requirementsTable.description, `%${search}%`),
+        ilike(requirementsTable.city, `%${search}%`)
+      )!);
+    }
   } else {
     conditions.push(eq(requirementsTable.status, "open"));
   }
@@ -197,6 +206,8 @@ router.get("/requirements/:id", optionalAuth, async (req, res): Promise<void> =>
 
   const bidsWithProvider = await Promise.all(bids.map(async (b) => {
     const [provider] = await db.select().from(usersTable).where(eq(usersTable.id, b.providerId));
+    const [reviewStats] = await db.select({ avg: avg(reviewsTable.rating), count: count() }).from(reviewsTable).where(eq(reviewsTable.revieweeId, b.providerId));
+    const [sub] = await db.select().from(providerSubscriptionsTable).where(eq(providerSubscriptionsTable.providerId, b.providerId));
     return {
       id: b.id,
       requirementId: b.requirementId,
@@ -218,9 +229,9 @@ router.get("/requirements/:id", optionalAuth, async (req, res): Promise<void> =>
       providerCity: provider?.city ?? null,
       providerTrustScore: provider?.trustScore ?? 0,
       providerIsVerified: provider?.isVerified ?? false,
-      providerAvgRating: null,
-      providerReviewCount: 0,
-      providerSubscriptionPlan: null,
+      providerAvgRating: reviewStats?.avg ? Number(reviewStats.avg) : null,
+      providerReviewCount: Number(reviewStats?.count ?? 0),
+      providerSubscriptionPlan: sub?.plan ?? null,
       createdAt: b.createdAt.toISOString(),
     };
   }));

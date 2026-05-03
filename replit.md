@@ -1,5 +1,18 @@
 # OmniBid India
 
+## Bug Fixes & Improvements (Audit Session)
+
+| Fix | File | Detail |
+|-----|------|--------|
+| `GavelIcon` crash | `requirement-detail.tsx` | Was imported as `Gavel` but used as `GavelIcon` — runtime crash on bid button fixed |
+| Bid enrichment | `requirements.ts` GET /:id | `providerAvgRating` and `providerSubscriptionPlan` were hardcoded `null` — now joins `reviews` and `provider_subscriptions` tables |
+| Search filter | `requirements.ts` GET / | `search` query param was accepted but not applied — now filters via `ilike` on title, description, city |
+| Live polling | `requirement-detail.tsx` | Added 20s `refetchInterval` (active while auction is `open`) for live bid updates |
+| SelectItem crash | `market-intelligence.tsx` | `<SelectItem value="">` is invalid in Radix UI — changed to `value="all"` with matching state/query logic |
+| QA page Phase 9 | `qa.tsx` | Added 10 Phase 9 user journeys and 15 new test scenarios (T26–T40) covering Finance, Market, GPS, Auctions |
+
+
+
 A full-stack real-time reverse auction marketplace where buyers post problems and verified service providers bid competitively — prices go DOWN as providers compete.
 
 ## Architecture

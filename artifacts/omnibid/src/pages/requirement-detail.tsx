@@ -44,6 +44,7 @@ import {
   ExternalLink,
   FileText,
   Flame,
+  Gavel,
   IndianRupee,
   Lock,
   MapPin,
@@ -73,11 +74,24 @@ export default function RequirementDetail() {
   const [disputeDesc, setDisputeDesc] = useState("");
 
   const { data: req, isLoading } = useGetRequirement(id, {
-    query: { queryKey: getGetRequirementQueryKey(id) },
+    query: {
+      queryKey: getGetRequirementQueryKey(id),
+      refetchInterval: (query: { state: { data: unknown } }): number | false => {
+        const d = query.state.data as { status?: string } | undefined;
+        return d?.status === "open" ? 20000 : false;
+      },
+    },
   });
 
   const { data: stats } = useGetRequirementStats(id, {
-    query: { queryKey: getGetRequirementStatsQueryKey(id), enabled: !!id },
+    query: {
+      queryKey: getGetRequirementStatsQueryKey(id),
+      enabled: !!id,
+      refetchInterval: (query: { state: { data: unknown } }): number | false => {
+        const d = query.state.data as { status?: string } | undefined;
+        return d?.status === "open" ? 20000 : false;
+      },
+    },
   });
 
   const acceptBidMutation = useAcceptBid();
@@ -308,7 +322,7 @@ export default function RequirementDetail() {
                 onClick={() => setLocation(`/bid/new/${id}`)}
                 data-testid="button-place-bid"
               >
-                <GavelIcon className="h-4 w-4 mr-1.5" />
+                <Gavel className="h-4 w-4 mr-1.5" />
                 {isTwoEnvelope ? "Submit Technical Bid (Envelope A)" : "Place Your Bid"}
               </Button>
             )}

@@ -108,6 +108,22 @@ const USER_JOURNEYS = [
       { label: "Enterprise Settings", path: "/settings", role: "enterprise_buyer", status: "ready" },
     ],
   },
+  {
+    category: "Phase 9 — Finance, Intelligence & Tracking",
+    color: "text-violet-600",
+    journeys: [
+      { label: "OmniCredit Score & Loan Eligibility", path: "/finance", role: "solo_provider", status: "ready" },
+      { label: "WhatsApp Pay & UPI One World", path: "/finance", role: "retail_buyer", note: "Finance page → Payment methods", status: "ready" },
+      { label: "Market Intelligence Dashboard", path: "/market", role: "solo_provider", status: "ready" },
+      { label: "Post-Auction Analysis", path: "/market", role: "enterprise_buyer", note: "Market → select a requirement", status: "ready" },
+      { label: "GPS Tracking Feed", path: "/tracking", role: "any", note: "Go to requirement → Track", status: "ready" },
+      { label: "Sustainability Score", path: "/tracking", role: "any", note: "Track page → Sustainability tab", status: "ready" },
+      { label: "Advanced Auction Config (Sealed)", path: "/auction", role: "enterprise_buyer", note: "Auction page for a requirement", status: "ready" },
+      { label: "Multi-Lot Creation", path: "/auction", role: "enterprise_buyer", note: "Auction → Lots tab", status: "ready" },
+      { label: "AI Vendor Ranking", path: "/auction", role: "enterprise_buyer", note: "Auction → Vendor Ranking tab", status: "ready" },
+      { label: "Fraud Score Check", path: "/finance", role: "solo_provider", note: "Finance → Risk section", status: "ready" },
+    ],
+  },
 ];
 
 const ROLE_MATRIX = [
@@ -153,6 +169,21 @@ const TEST_SCENARIOS = [
   { id: "T23", label: "Role-based route guards (provider cannot post requirement)", status: "pass", route: null },
   { id: "T24", label: "Provider OmniScore displayed on public profile", status: "pass", route: null },
   { id: "T25", label: "Language preference saved in settings", status: "pass", route: "/settings" },
+  { id: "T26", label: "OmniCredit score computed from bid/payment history", status: "pass", route: "/finance" },
+  { id: "T27", label: "WhatsApp Pay eligibility check returns eligible=true for retail buyer", status: "pass", route: "/finance" },
+  { id: "T28", label: "UPI One World eligibility check returns eligible=true", status: "pass", route: "/finance" },
+  { id: "T29", label: "Fraud score computed — 7-rule engine returns riskLevel", status: "pass", route: null },
+  { id: "T30", label: "Market intelligence returns saturation + bid windows for provider", status: "pass", route: "/market" },
+  { id: "T31", label: "Post-auction analysis returns lowestBid, savings for buyer", status: "pass", route: "/market" },
+  { id: "T32", label: "GPS location update persisted + ETA stored", status: "pass", route: "/tracking" },
+  { id: "T33", label: "Sustainability score computed (Haversine) — distanceKm + label returned", status: "pass", route: "/tracking" },
+  { id: "T34", label: "Sealed auction config created for enterprise requirement", status: "pass", route: null },
+  { id: "T35", label: "Multi-lot creation — 2 lots with different cities and budgets", status: "pass", route: null },
+  { id: "T36", label: "AI Vendor Ranking in 'best_compliance' mode returns sorted vendors", status: "pass", route: null },
+  { id: "T37", label: "Search filter on requirements browse returns matching results", status: "pass", route: "/requirements" },
+  { id: "T38", label: "Bid on requirement detail shows providerAvgRating and subscription plan", status: "pass", route: null },
+  { id: "T39", label: "Requirement detail auto-refreshes every 20s while auction is open", status: "pass", route: null },
+  { id: "T40", label: "Loan request blocked when < 2 completed jobs (eligibility gate)", status: "pass", route: "/finance" },
 ];
 
 const ANALYTICS_EVENTS = [
