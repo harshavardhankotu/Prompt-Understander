@@ -18,6 +18,7 @@ import {
   LogOut,
   PlusCircle,
   Scale,
+  Shield,
   User,
   CreditCard,
 } from "lucide-react";
@@ -40,8 +41,17 @@ export default function Layout({ children }: LayoutProps) {
     setLocation("/");
   };
 
-  const isProvider = user?.role === "provider" || user?.role === "both";
-  const isBuyer = user?.role === "buyer" || user?.role === "both";
+  const isProvider =
+    user?.role === "provider" ||
+    user?.role === "both" ||
+    user?.role === "solo_provider" ||
+    user?.role === "agency_provider";
+
+  const isBuyer =
+    user?.role === "buyer" ||
+    user?.role === "both" ||
+    user?.role === "retail_buyer" ||
+    user?.role === "enterprise_buyer";
 
   return (
     <div className="min-h-screen bg-background">
@@ -105,7 +115,7 @@ export default function Layout({ children }: LayoutProps) {
                         <ChevronDown className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuContent align="end" className="w-52">
                       {isBuyer && (
                         <DropdownMenuItem onClick={() => setLocation("/dashboard/buyer")} data-testid="menu-buyer-dashboard">
                           <LayoutDashboard className="h-4 w-4 mr-2" />
@@ -121,6 +131,10 @@ export default function Layout({ children }: LayoutProps) {
                       <DropdownMenuItem onClick={() => setLocation(`/profile/${user.id}`)} data-testid="menu-profile">
                         <User className="h-4 w-4 mr-2" />
                         Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/compliance")} data-testid="menu-compliance">
+                        <Shield className="h-4 w-4 mr-2" />
+                        Compliance Vault
                       </DropdownMenuItem>
                       {isProvider && (
                         <DropdownMenuItem onClick={() => setLocation("/subscriptions")} data-testid="menu-subscriptions">

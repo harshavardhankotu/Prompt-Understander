@@ -10,7 +10,15 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const userRoleEnum = pgEnum("user_role", ["buyer", "provider", "both"]);
+export const userRoleEnum = pgEnum("user_role", [
+  "buyer",
+  "provider",
+  "both",
+  "retail_buyer",
+  "enterprise_buyer",
+  "solo_provider",
+  "agency_provider",
+]);
 
 export const usersTable = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -18,7 +26,7 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull().unique(),
   phone: text("phone"),
   passwordHash: text("password_hash").notNull(),
-  role: userRoleEnum("role").notNull().default("buyer"),
+  role: userRoleEnum("role").notNull().default("retail_buyer"),
   city: text("city"),
   state: text("state"),
   pincode: text("pincode"),

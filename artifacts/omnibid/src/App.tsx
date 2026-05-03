@@ -17,6 +17,7 @@ import Profile from "@/pages/profile";
 import Notifications from "@/pages/notifications";
 import Subscriptions from "@/pages/subscriptions";
 import Disputes from "@/pages/disputes";
+import Compliance from "@/pages/compliance";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/notifications" component={Notifications} />
       <Route path="/subscriptions" component={Subscriptions} />
       <Route path="/disputes" component={Disputes} />
+      <Route path="/compliance" component={Compliance} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -22,7 +22,15 @@ export const RegisterBody = zod.object({
   email: zod.string(),
   phone: zod.string().optional(),
   password: zod.string(),
-  role: zod.enum(["buyer", "provider", "both"]),
+  role: zod.enum([
+    "buyer",
+    "provider",
+    "both",
+    "retail_buyer",
+    "enterprise_buyer",
+    "solo_provider",
+    "agency_provider",
+  ]),
   city: zod.string().optional(),
   state: zod.string().optional(),
   pincode: zod.string().optional(),
@@ -42,7 +50,15 @@ export const LoginResponse = zod.object({
     name: zod.string(),
     email: zod.string(),
     phone: zod.string().nullish(),
-    role: zod.enum(["buyer", "provider", "both"]),
+    role: zod.enum([
+      "buyer",
+      "provider",
+      "both",
+      "retail_buyer",
+      "enterprise_buyer",
+      "solo_provider",
+      "agency_provider",
+    ]),
     city: zod.string().nullish(),
     state: zod.string().nullish(),
     pincode: zod.string().nullish(),
@@ -70,7 +86,15 @@ export const GetMeResponse = zod.object({
   name: zod.string(),
   email: zod.string(),
   phone: zod.string().nullish(),
-  role: zod.enum(["buyer", "provider", "both"]),
+  role: zod.enum([
+    "buyer",
+    "provider",
+    "both",
+    "retail_buyer",
+    "enterprise_buyer",
+    "solo_provider",
+    "agency_provider",
+  ]),
   city: zod.string().nullish(),
   state: zod.string().nullish(),
   pincode: zod.string().nullish(),
@@ -94,7 +118,15 @@ export const GetUserResponse = zod
     name: zod.string(),
     email: zod.string(),
     phone: zod.string().nullish(),
-    role: zod.enum(["buyer", "provider", "both"]),
+    role: zod.enum([
+      "buyer",
+      "provider",
+      "both",
+      "retail_buyer",
+      "enterprise_buyer",
+      "solo_provider",
+      "agency_provider",
+    ]),
     city: zod.string().nullish(),
     state: zod.string().nullish(),
     pincode: zod.string().nullish(),
@@ -134,7 +166,15 @@ export const UpdateUserResponse = zod.object({
   name: zod.string(),
   email: zod.string(),
   phone: zod.string().nullish(),
-  role: zod.enum(["buyer", "provider", "both"]),
+  role: zod.enum([
+    "buyer",
+    "provider",
+    "both",
+    "retail_buyer",
+    "enterprise_buyer",
+    "solo_provider",
+    "agency_provider",
+  ]),
   city: zod.string().nullish(),
   state: zod.string().nullish(),
   pincode: zod.string().nullish(),
@@ -317,7 +357,15 @@ export const GetRequirementResponse = zod
         name: zod.string(),
         email: zod.string(),
         phone: zod.string().nullish(),
-        role: zod.enum(["buyer", "provider", "both"]),
+        role: zod.enum([
+          "buyer",
+          "provider",
+          "both",
+          "retail_buyer",
+          "enterprise_buyer",
+          "solo_provider",
+          "agency_provider",
+        ]),
         city: zod.string().nullish(),
         state: zod.string().nullish(),
         pincode: zod.string().nullish(),
@@ -922,6 +970,48 @@ export const ResolveDisputeResponse = zod.object({
   resolutionNote: zod.string().nullish(),
   resolvedAt: zod.string().nullish(),
   createdAt: zod.string(),
+});
+
+/**
+ * @summary Get current user compliance vault
+ */
+export const GetMyComplianceResponse = zod
+  .object({
+    id: zod.string(),
+    userId: zod.string(),
+    aadhaarStatus: zod.enum(["pending", "verified"]),
+    panNumber: zod.string().nullish(),
+    gstNumber: zod.string().nullish(),
+    mcaRegistration: zod.string().nullish(),
+    insuranceUploadUrl: zod.string().nullish(),
+    isEmpanelled: zod.boolean(),
+    createdAt: zod.string(),
+    updatedAt: zod.string(),
+  })
+  .nullable();
+
+/**
+ * @summary Upsert compliance vault
+ */
+export const UpdateMyComplianceBody = zod.object({
+  panNumber: zod.string().optional(),
+  gstNumber: zod.string().optional(),
+  mcaRegistration: zod.string().optional(),
+  insuranceUploadUrl: zod.string().optional(),
+  aadhaarStatus: zod.enum(["pending", "verified"]).optional(),
+});
+
+export const UpdateMyComplianceResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  aadhaarStatus: zod.enum(["pending", "verified"]),
+  panNumber: zod.string().nullish(),
+  gstNumber: zod.string().nullish(),
+  mcaRegistration: zod.string().nullish(),
+  insuranceUploadUrl: zod.string().nullish(),
+  isEmpanelled: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
 });
 
 /**

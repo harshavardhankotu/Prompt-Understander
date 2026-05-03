@@ -18,6 +18,7 @@ tags:
   - name: subscriptions
   - name: dashboard
   - name: disputes
+  - name: compliance
 
 paths:
   /healthz:
@@ -613,6 +614,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/Dispute"
 
+  /compliance/my:
+    get:
+      operationId: getMyCompliance
+      tags: [compliance]
+      summary: Get current user compliance vault
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Compliance vault (null if not yet created)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceVault"
+                nullable: true
+    put:
+      operationId: updateMyCompliance
+      tags: [compliance]
+      summary: Upsert compliance vault
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateComplianceBody"
+      responses:
+        "200":
+          description: Saved compliance vault
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceVault"
+
   /requirements/stats/{id}:
     get:
       operationId: getRequirementStats
@@ -661,7 +697,7 @@ components:
           type: string
         role:
           type: string
-          enum: [buyer, provider, both]
+          enum: [buyer, provider, both, retail_buyer, enterprise_buyer, solo_provider, agency_provider]
         city:
           type: string
         state:
@@ -702,7 +738,7 @@ components:
           nullable: true
         role:
           type: string
-          enum: [buyer, provider, both]
+          enum: [buyer, provider, both, retail_buyer, enterprise_buyer, solo_provider, agency_provider]
         city:
           type: string
           nullable: true
@@ -1269,3 +1305,48 @@ components:
         resolutionNote:
           type: string
       required: [resolution, resolutionNote]
+
+    ComplianceVault:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        aadhaarStatus:
+          type: string
+          enum: [pending, verified]
+        panNumber:
+          type: string
+          nullable: true
+        gstNumber:
+          type: string
+          nullable: true
+        mcaRegistration:
+          type: string
+          nullable: true
+        insuranceUploadUrl:
+          type: string
+          nullable: true
+        isEmpanelled:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, userId, aadhaarStatus, isEmpanelled, createdAt, updatedAt]
+
+    UpdateComplianceBody:
+      type: object
+      properties:
+        panNumber:
+          type: string
+        gstNumber:
+          type: string
+        mcaRegistration:
+          type: string
+        insuranceUploadUrl:
+          type: string
+        aadhaarStatus:
+          type: string
+          enum: [pending, verified]

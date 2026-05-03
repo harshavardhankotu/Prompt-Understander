@@ -33,7 +33,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     pincode: pincode ?? null,
   }).returning();
 
-  if (role === "provider" || role === "both") {
+  if (role === "provider" || role === "both" || role === "solo_provider" || role === "agency_provider") {
     await db.insert(providerSubscriptionsTable).values({
       providerId: user.id,
       plan: "free",

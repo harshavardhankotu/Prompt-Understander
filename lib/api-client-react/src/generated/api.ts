@@ -23,6 +23,7 @@ import type {
   BidWithRequirement,
   BuyerDashboard,
   Category,
+  ComplianceVault,
   CreateBidBody,
   CreateDisputeBody,
   CreateRequirementBody,
@@ -45,6 +46,7 @@ import type {
   ResolveDisputeBody,
   RespondDisputeBody,
   Review,
+  UpdateComplianceBody,
   UpdateUserBody,
   UpgradeSubscriptionBody,
   User,
@@ -2624,6 +2626,167 @@ export const useResolveDispute = <
   TContext
 > => {
   return useMutation(getResolveDisputeMutationOptions(options));
+};
+
+/**
+ * @summary Get current user compliance vault
+ */
+export const getGetMyComplianceUrl = () => {
+  return `/api/compliance/my`;
+};
+
+export const getMyCompliance = async (
+  options?: RequestInit,
+): Promise<ComplianceVault | null> => {
+  return customFetch<ComplianceVault | null>(getGetMyComplianceUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyComplianceQueryKey = () => {
+  return [`/api/compliance/my`] as const;
+};
+
+export const getGetMyComplianceQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyCompliance>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyCompliance>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyComplianceQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyCompliance>>> = ({
+    signal,
+  }) => getMyCompliance({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyCompliance>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyComplianceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyCompliance>>
+>;
+export type GetMyComplianceQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get current user compliance vault
+ */
+
+export function useGetMyCompliance<
+  TData = Awaited<ReturnType<typeof getMyCompliance>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyCompliance>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyComplianceQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Upsert compliance vault
+ */
+export const getUpdateMyComplianceUrl = () => {
+  return `/api/compliance/my`;
+};
+
+export const updateMyCompliance = async (
+  updateComplianceBody: UpdateComplianceBody,
+  options?: RequestInit,
+): Promise<ComplianceVault> => {
+  return customFetch<ComplianceVault>(getUpdateMyComplianceUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateComplianceBody),
+  });
+};
+
+export const getUpdateMyComplianceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMyCompliance>>,
+    TError,
+    { data: BodyType<UpdateComplianceBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMyCompliance>>,
+  TError,
+  { data: BodyType<UpdateComplianceBody> },
+  TContext
+> => {
+  const mutationKey = ["updateMyCompliance"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMyCompliance>>,
+    { data: BodyType<UpdateComplianceBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateMyCompliance(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMyComplianceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMyCompliance>>
+>;
+export type UpdateMyComplianceMutationBody = BodyType<UpdateComplianceBody>;
+export type UpdateMyComplianceMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Upsert compliance vault
+ */
+export const useUpdateMyCompliance = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMyCompliance>>,
+    TError,
+    { data: BodyType<UpdateComplianceBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMyCompliance>>,
+  TError,
+  { data: BodyType<UpdateComplianceBody> },
+  TContext
+> => {
+  return useMutation(getUpdateMyComplianceMutationOptions(options));
 };
 
 /**

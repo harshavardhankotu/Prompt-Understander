@@ -20,6 +20,10 @@ export const RegisterBodyRole = {
   buyer: "buyer",
   provider: "provider",
   both: "both",
+  retail_buyer: "retail_buyer",
+  enterprise_buyer: "enterprise_buyer",
+  solo_provider: "solo_provider",
+  agency_provider: "agency_provider",
 } as const;
 
 export interface RegisterBody {
@@ -44,6 +48,10 @@ export const UserRole = {
   buyer: "buyer",
   provider: "provider",
   both: "both",
+  retail_buyer: "retail_buyer",
+  enterprise_buyer: "enterprise_buyer",
+  solo_provider: "solo_provider",
+  agency_provider: "agency_provider",
 } as const;
 
 export interface User {
@@ -414,6 +422,43 @@ export const ResolveDisputeBodyResolution = {
 export interface ResolveDisputeBody {
   resolution: ResolveDisputeBodyResolution;
   resolutionNote: string;
+}
+
+export type ComplianceVaultAadhaarStatus =
+  (typeof ComplianceVaultAadhaarStatus)[keyof typeof ComplianceVaultAadhaarStatus];
+
+export const ComplianceVaultAadhaarStatus = {
+  pending: "pending",
+  verified: "verified",
+} as const;
+
+export interface ComplianceVault {
+  id: string;
+  userId: string;
+  aadhaarStatus: ComplianceVaultAadhaarStatus;
+  panNumber?: string | null;
+  gstNumber?: string | null;
+  mcaRegistration?: string | null;
+  insuranceUploadUrl?: string | null;
+  isEmpanelled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type UpdateComplianceBodyAadhaarStatus =
+  (typeof UpdateComplianceBodyAadhaarStatus)[keyof typeof UpdateComplianceBodyAadhaarStatus];
+
+export const UpdateComplianceBodyAadhaarStatus = {
+  pending: "pending",
+  verified: "verified",
+} as const;
+
+export interface UpdateComplianceBody {
+  panNumber?: string;
+  gstNumber?: string;
+  mcaRegistration?: string;
+  insuranceUploadUrl?: string;
+  aadhaarStatus?: UpdateComplianceBodyAadhaarStatus;
 }
 
 export type ListRequirementsParams = {

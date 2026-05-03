@@ -6,3 +6,4 @@ export * from "./reviews";
 export * from "./provider_subscriptions";
 export * from "./notifications";
 export * from "./disputes";
+export * from "./compliance_vault";
