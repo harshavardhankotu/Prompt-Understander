@@ -23,6 +23,10 @@ async function formatBid(b: typeof bidsTable.$inferSelect) {
     estimatedCompletion: b.estimatedCompletion,
     executorType: b.executorType,
     subcontractorName: b.subcontractorName,
+    envelopeAUrl: b.envelopeAUrl,
+    crewSizeOffered: b.crewSizeOffered,
+    isBackhaul: b.isBackhaul,
+    bidSource: b.bidSource,
     status: b.status,
     isHighlighted: b.isHighlighted,
     providerName: provider?.name ?? "Unknown",
@@ -79,6 +83,11 @@ router.post("/requirements/:requirementId/bids", requireAuth, async (req, res): 
   const isNewProvider = Number(allBidsByProvider?.count ?? 0) < 10;
   const shouldHighlight = parsed.data.isHighlighted || isNewProvider;
 
+  // For two_envelope requirements, initial status is envelope_a_pending if envelopeAUrl provided
+  const isTwoEnvelope = requirement.bidType === "two_envelope";
+  const hasEnvA = !!(parsed.data as { envelopeAUrl?: string }).envelopeAUrl;
+  const bidStatus = isTwoEnvelope ? (hasEnvA ? "envelope_a_pending" : "active") : "active";
+
   const [bid] = await db.insert(bidsTable).values({
     requirementId,
     providerId: req.user!.userId,
@@ -89,7 +98,12 @@ router.post("/requirements/:requirementId/bids", requireAuth, async (req, res): 
     estimatedCompletion: parsed.data.estimatedCompletion,
     executorType: (parsed.data.executorType as "self" | "partial") ?? "self",
     subcontractorName: parsed.data.subcontractorName ?? null,
+    envelopeAUrl: (parsed.data as { envelopeAUrl?: string }).envelopeAUrl ?? null,
+    crewSizeOffered: (parsed.data as { crewSizeOffered?: number }).crewSizeOffered ?? null,
+    isBackhaul: (parsed.data as { isBackhaul?: boolean }).isBackhaul ?? false,
+    bidSource: (parsed.data as { bidSource?: string }).bidSource ?? "web",
     isHighlighted: shouldHighlight,
+    status: bidStatus as "active" | "envelope_a_pending",
   }).returning();
 
   if (sub && sub.plan === "free") {
@@ -99,6 +113,25 @@ router.post("/requirements/:requirementId/bids", requireAuth, async (req, res): 
   await notifyUser(requirement.buyerId, "new_bid", `New bid received for "${requirement.title}"`, { requirementId, bidId: bid.id });
 
   res.status(201).json(await formatBid(bid));
+});
+
+router.post("/bids/:id/approve-envelope-a", requireAuth, async (req, res): Promise<void> => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const [bid] = await db.select().from(bidsTable).where(eq(bidsTable.id, id));
+  if (!bid) { res.status(404).json({ error: "Bid not found" }); return; }
+
+  const [requirement] = await db.select().from(requirementsTable).where(eq(requirementsTable.id, bid.requirementId));
+  if (!requirement) { res.status(404).json({ error: "Requirement not found" }); return; }
+  if (requirement.buyerId !== req.user!.userId) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const [updated] = await db.update(bidsTable)
+    .set({ status: "envelope_a_approved" })
+    .where(eq(bidsTable.id, id))
+    .returning();
+
+  await notifyUser(bid.providerId, "envelope_approved", `Your technical bid for "${requirement.title}" was approved! Your financial amount is now visible.`, { requirementId: bid.requirementId, bidId: id });
+
+  res.json(await formatBid(updated));
 });
 
 router.post("/bids/:id/withdraw", requireAuth, async (req, res): Promise<void> => {
@@ -139,6 +172,10 @@ router.get("/bids/my", requireAuth, async (req, res): Promise<void> => {
         deadlineHours: req2.deadlineHours,
         auctionEndsAt: req2.auctionEndsAt.toISOString(),
         status: req2.status,
+        bidType: req2.bidType,
+        isMegaProject: req2.isMegaProject,
+        isSyndicate: req2.isSyndicate,
+        jugaadMode: req2.jugaadMode,
         attachmentUrl: req2.attachmentUrl,
         winningBidId: req2.winningBidId,
         isHighTicket: req2.isHighTicket,

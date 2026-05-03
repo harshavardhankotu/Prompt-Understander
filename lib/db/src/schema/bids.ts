@@ -3,6 +3,7 @@ import {
   text,
   uuid,
   decimal,
+  integer,
   boolean,
   timestamp,
   pgEnum,
@@ -14,6 +15,8 @@ import { requirementsTable } from "./requirements";
 
 export const bidStatusEnum = pgEnum("bid_status", [
   "active",
+  "envelope_a_pending",
+  "envelope_a_approved",
   "accepted",
   "rejected",
   "withdrawn",
@@ -39,6 +42,10 @@ export const bidsTable = pgTable("bids", {
   estimatedCompletion: text("estimated_completion").notNull(),
   executorType: executorTypeEnum("executor_type").notNull().default("self"),
   subcontractorName: text("subcontractor_name"),
+  envelopeAUrl: text("envelope_a_url"),
+  crewSizeOffered: integer("crew_size_offered"),
+  isBackhaul: boolean("is_backhaul").notNull().default(false),
+  bidSource: text("bid_source").notNull().default("web"),
   status: bidStatusEnum("status").notNull().default("active"),
   isHighlighted: boolean("is_highlighted").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

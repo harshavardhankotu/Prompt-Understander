@@ -11,6 +11,8 @@ import subscriptionsRouter from "./subscriptions";
 import dashboardRouter from "./dashboard";
 import disputesRouter from "./disputes";
 import complianceRouter from "./compliance";
+import negotiationsRouter from "./negotiations";
+import paymentsRouter from "./payments";
 
 const router: IRouter = Router();
 
@@ -26,5 +28,7 @@ router.use(subscriptionsRouter);
 router.use(dashboardRouter);
 router.use(disputesRouter);
 router.use(complianceRouter);
+router.use(negotiationsRouter);
+router.use(paymentsRouter);
 
 export default router;

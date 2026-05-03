@@ -1,3 +1,4 @@
+// @refresh reset
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import Layout from "@/components/layout";
@@ -29,6 +30,7 @@ import {
   getListDisputesQueryKey,
   useRepostRequirement,
   getListRequirementsQueryKey,
+  useApproveEnvelopeA,
   type Bid,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
@@ -40,8 +42,10 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  FileText,
   Flame,
   IndianRupee,
+  Lock,
   MapPin,
   MessageSquare,
   RefreshCw,
@@ -79,12 +83,25 @@ export default function RequirementDetail() {
   const acceptBidMutation = useAcceptBid();
   const createDisputeMutation = useCreateDispute();
   const repostMutation = useRepostRequirement();
+  const approveEnvelopeAMutation = useApproveEnvelopeA();
 
   const isOwner = user?.id === req?.buyerId;
-  const isProvider = user?.role === "provider" || user?.role === "both";
-  const canBid = isProvider && req?.status === "open" && !isOwner;
-  const canRepost = isOwner && req && ["accepted", "completed", "expired", "cancelled"].includes(req.status);
+  const isProvider =
+    user?.role === "provider" ||
+    user?.role === "both" ||
+    user?.role === "solo_provider" ||
+    user?.role === "agency_provider";
+  const isBuyer =
+    user?.role === "buyer" ||
+    user?.role === "both" ||
+    user?.role === "retail_buyer" ||
+    user?.role === "enterprise_buyer";
 
+  const canBid = isProvider && req?.status === "open" && !isOwner;
+  const canRepost = isOwner && req && ["accepted", "in_progress", "completed", "expired", "cancelled"].includes(req.status);
+  const isTwoEnvelope = req?.bidType === "two_envelope";
+
+  // Top 3 bidders for Bhaav-Taav access
   const sortedBids = [...(req?.bids ?? [])].sort((a, b) => {
     if (a.isHighlighted && !b.isHighlighted) return -1;
     if (!a.isHighlighted && b.isHighlighted) return 1;
@@ -92,6 +109,18 @@ export default function RequirementDetail() {
     if (sortBy === "highest_rating") return (b.providerAvgRating ?? 0) - (a.providerAvgRating ?? 0);
     return 0;
   });
+
+  const top3ProviderIds = new Set(
+    [...(req?.bids ?? [])]
+      .sort((a, b) => a.bidAmount - b.bidAmount)
+      .slice(0, 3)
+      .map((b) => b.providerId)
+  );
+
+  const myBidInTop3 = isProvider && !isOwner &&
+    [...(req?.bids ?? [])].some((b) => b.providerId === user?.id && top3ProviderIds.has(b.providerId));
+
+  const canNegotiate = req && ["accepted", "in_progress"].includes(req.status);
 
   const handleAcceptBid = (bidId: string) => {
     if (!id) return;
@@ -103,6 +132,19 @@ export default function RequirementDetail() {
           qc.invalidateQueries({ queryKey: getGetRequirementQueryKey(id) });
         },
         onError: () => toast({ title: "Error", description: "Failed to accept bid", variant: "destructive" }),
+      }
+    );
+  };
+
+  const handleApproveEnvelopeA = (bidId: string) => {
+    approveEnvelopeAMutation.mutate(
+      { id: bidId },
+      {
+        onSuccess: () => {
+          toast({ title: "Technical bid approved!", description: "The provider's financial amount is now visible." });
+          qc.invalidateQueries({ queryKey: getGetRequirementQueryKey(id) });
+        },
+        onError: () => toast({ title: "Error", description: "Failed to approve technical bid", variant: "destructive" }),
       }
     );
   };
@@ -184,11 +226,24 @@ export default function RequirementDetail() {
                     <Badge variant="secondary" className="text-xs">{req.categoryName}</Badge>
                     {req.isHighTicket && <Badge className="text-xs bg-amber-500 text-white">High Value</Badge>}
                     {req.isRecurring && <Badge variant="outline" className="text-xs border-blue-300 text-blue-600"><RefreshCw className="h-3 w-3 mr-1 inline" />Recurring</Badge>}
-                    <Badge variant={req.status === "open" ? "default" : req.status === "accepted" ? "default" : "secondary"} className="text-xs capitalize">
-                      {req.status}
+                    {isTwoEnvelope && (
+                      <Badge variant="outline" className="text-xs border-violet-300 text-violet-600">
+                        <FileText className="h-3 w-3 mr-1 inline" />Two-Envelope RFP
+                      </Badge>
+                    )}
+                    {req.isMegaProject && (
+                      <Badge className="text-xs bg-purple-600 text-white">Mega Project</Badge>
+                    )}
+                    {req.isSyndicate && (
+                      <Badge className="text-xs bg-teal-600 text-white">
+                        <Users className="h-3 w-3 mr-1 inline" />Syndicate
+                      </Badge>
+                    )}
+                    <Badge variant={req.status === "open" ? "default" : req.status === "accepted" || req.status === "in_progress" ? "default" : "secondary"} className="text-xs capitalize">
+                      {req.status.replace("_", " ")}
                     </Badge>
                     {stats?.isBidWar && (
-                      <span className="flex items-center gap-1 text-xs text-orange-500 font-semibold">
+                      <span className="flex items-center gap-1 text-xs text-orange-500 font-semibold animate-pulse">
                         <Flame className="h-3.5 w-3.5" />
                         Bid War!
                       </span>
@@ -214,6 +269,13 @@ export default function RequirementDetail() {
                 )}
               </div>
             </div>
+
+            {isTwoEnvelope && (
+              <div className="mt-3 p-2.5 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 text-xs text-violet-700 dark:text-violet-400">
+                <FileText className="h-3.5 w-3.5 inline mr-1.5" />
+                <strong>Two-Envelope RFP:</strong> Providers submit a technical portfolio first. Buyer approves before financial bids are revealed.
+              </div>
+            )}
 
             <p className="text-sm text-foreground/80 mt-3 leading-relaxed">{req.description}</p>
 
@@ -247,14 +309,55 @@ export default function RequirementDetail() {
                 data-testid="button-place-bid"
               >
                 <GavelIcon className="h-4 w-4 mr-1.5" />
-                Place Your Bid
+                {isTwoEnvelope ? "Submit Technical Bid (Envelope A)" : "Place Your Bid"}
+              </Button>
+            )}
+
+            {/* Bhaav-Taav negotiation room — buyer enters for top 3 bidders */}
+            {isOwner && canNegotiate && req.winningBidId && (
+              <Button
+                variant="outline"
+                className="w-full mt-2 border-primary/40 text-primary hover:bg-primary/5"
+                onClick={() => {
+                  const winBid = req.bids.find((b) => b.id === req.winningBidId);
+                  if (winBid) setLocation(`/negotiate/${id}/${winBid.providerId}`);
+                }}
+                data-testid="button-negotiate"
+              >
+                <MessageSquare className="h-4 w-4 mr-1.5" />
+                Enter Bhaav-Taav Negotiation Room
+              </Button>
+            )}
+
+            {/* Provider enters negotiation if in top 3 */}
+            {!isOwner && isProvider && myBidInTop3 && canNegotiate && (
+              <Button
+                variant="outline"
+                className="w-full mt-2 border-primary/40 text-primary hover:bg-primary/5"
+                onClick={() => setLocation(`/negotiate/${id}`)}
+              >
+                <MessageSquare className="h-4 w-4 mr-1.5" />
+                Enter Bhaav-Taav Negotiation Room
+              </Button>
+            )}
+
+            {/* Payment button */}
+            {(isOwner || isProvider) && ["accepted", "in_progress"].includes(req.status) && (
+              <Button
+                variant={req.status === "in_progress" ? "outline" : "default"}
+                className={`w-full mt-2 ${req.status === "accepted" ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
+                onClick={() => setLocation(`/payment/${id}`)}
+                data-testid="button-payment"
+              >
+                <IndianRupee className="h-4 w-4 mr-1.5" />
+                {req.status === "in_progress" ? "View Escrow & Work Proofs" : "Initiate UPI Escrow Payment"}
               </Button>
             )}
 
             {canRepost && (
               <Button
                 variant="outline"
-                className="w-full mt-3 border-blue-300 text-blue-700 hover:bg-blue-50"
+                className="w-full mt-2 border-blue-300 text-blue-700 hover:bg-blue-50"
                 onClick={handleRepost}
                 disabled={repostMutation.isPending}
                 data-testid="button-repost"
@@ -293,119 +396,198 @@ export default function RequirementDetail() {
                 <p className="text-sm">No bids yet. Be the first to bid!</p>
               </div>
             )}
-            {sortedBids.map((bid) => (
-              <div
-                key={bid.id}
-                className={`rounded-xl border p-4 ${bid.isHighlighted ? "border-amber-400 bg-amber-50/50 dark:bg-amber-950/10" : "border-border"} ${bid.status === "accepted" ? "border-green-500 bg-green-50/50 dark:bg-green-950/10" : ""}`}
-                data-testid={`card-bid-${bid.id}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm">
-                      {bid.providerName[0]}
+            {sortedBids.map((bid) => {
+              const isEnvAPending = isTwoEnvelope && bid.status === "envelope_a_pending";
+              const isEnvAApproved = isTwoEnvelope && bid.status === "envelope_a_approved";
+              const showFinancial = !isTwoEnvelope || isEnvAApproved || bid.status === "accepted" || bid.status === "rejected" || !isOwner;
+
+              return (
+                <div
+                  key={bid.id}
+                  className={`rounded-xl border p-4 ${bid.isHighlighted ? "border-amber-400 bg-amber-50/50 dark:bg-amber-950/10" : "border-border"} ${bid.status === "accepted" ? "border-green-500 bg-green-50/50 dark:bg-green-950/10" : ""}`}
+                  data-testid={`card-bid-${bid.id}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm">
+                        {bid.providerName[0]}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-sm">{bid.providerName}</span>
+                          {bid.providerIsVerified && <Shield className="h-3.5 w-3.5 text-primary" />}
+                          {bid.isHighlighted && <Badge className="text-[10px] bg-amber-500 text-white px-1.5 py-0">Featured</Badge>}
+                          {bid.status === "accepted" && <Badge className="text-[10px] bg-green-500 text-white px-1.5 py-0"><CheckCircle2 className="h-2.5 w-2.5 mr-0.5 inline" />Accepted</Badge>}
+                          {isEnvAPending && <Badge className="text-[10px] bg-violet-500 text-white px-1.5 py-0"><Lock className="h-2.5 w-2.5 mr-0.5 inline" />Tech Review Pending</Badge>}
+                          {isEnvAApproved && <Badge className="text-[10px] bg-violet-600 text-white px-1.5 py-0"><CheckCircle2 className="h-2.5 w-2.5 mr-0.5 inline" />Tech Approved</Badge>}
+                          {bid.providerSubscriptionPlan && bid.providerSubscriptionPlan !== "free" && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">{bid.providerSubscriptionPlan}</Badge>
+                          )}
+                          {"executorType" in bid && bid.executorType === "self" ? (
+                            <span title="Will personally execute the work" className="text-[10px] text-blue-600 flex items-center gap-0.5">
+                              <UserCheck className="h-3 w-3" /> Self
+                            </span>
+                          ) : "executorType" in bid && bid.executorType === "partial" ? (
+                            <span title="Partial sub-work declared" className="text-[10px] text-orange-500 flex items-center gap-0.5">
+                              <Users className="h-3 w-3" /> Partial
+                            </span>
+                          ) : null}
+                          {"isBackhaul" in bid && bid.isBackhaul && (
+                            <Badge className="text-[10px] px-1.5 py-0 bg-teal-500 text-white">Cancellation Slot</Badge>
+                          )}
+                          {"crewSizeOffered" in bid && bid.crewSizeOffered && (bid.crewSizeOffered as number) > 1 && (
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                              <Users className="h-3 w-3" />{bid.crewSizeOffered as number} workers
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                          {bid.providerAvgRating && (
+                            <span className="flex items-center gap-0.5">
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                              {bid.providerAvgRating.toFixed(1)} ({bid.providerReviewCount})
+                            </span>
+                          )}
+                          {bid.providerCity && <span><MapPin className="h-3 w-3 inline mr-0.5" />{bid.providerCity}</span>}
+                          <span className="flex items-center gap-0.5"><Zap className="h-3 w-3" />{bid.estimatedCompletion}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-sm">{bid.providerName}</span>
-                        {bid.providerIsVerified && <Shield className="h-3.5 w-3.5 text-primary" />}
-                        {bid.isHighlighted && <Badge className="text-[10px] bg-amber-500 text-white px-1.5 py-0">Featured</Badge>}
-                        {bid.status === "accepted" && <Badge className="text-[10px] bg-green-500 text-white px-1.5 py-0"><CheckCircle2 className="h-2.5 w-2.5 mr-0.5 inline" />Accepted</Badge>}
-                        {bid.providerSubscriptionPlan && bid.providerSubscriptionPlan !== "free" && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">{bid.providerSubscriptionPlan}</Badge>
-                        )}
-                        {"executorType" in bid && bid.executorType === "self" ? (
-                          <span title="Will personally execute the work" className="text-[10px] text-blue-600 flex items-center gap-0.5">
-                            <UserCheck className="h-3 w-3" /> Self
-                          </span>
-                        ) : "executorType" in bid && bid.executorType === "partial" ? (
-                          <span title="Partial sub-work declared" className="text-[10px] text-orange-500 flex items-center gap-0.5">
-                            <Users className="h-3 w-3" /> Partial
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                        {bid.providerAvgRating && (
-                          <span className="flex items-center gap-0.5">
-                            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                            {bid.providerAvgRating.toFixed(1)} ({bid.providerReviewCount})
-                          </span>
-                        )}
-                        {bid.providerCity && <span><MapPin className="h-3 w-3 inline mr-0.5" />{bid.providerCity}</span>}
-                        <span className="flex items-center gap-0.5"><Zap className="h-3 w-3" />{bid.estimatedCompletion}</span>
-                      </div>
+                    <div className="text-right flex-shrink-0">
+                      {showFinancial ? (
+                        <>
+                          <div className="flex items-center justify-end gap-0.5 text-primary font-bold text-lg">
+                            <IndianRupee className="h-3.5 w-3.5" />
+                            {bid.bidAmount.toLocaleString("en-IN")}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {((bid.bidAmount / req.maxBudget) * 100).toFixed(0)}% of budget
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 rounded-lg px-2 py-1.5">
+                          <Lock className="h-3 w-3" />
+                          Locked until approved
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="flex items-center justify-end gap-0.5 text-primary font-bold text-lg">
-                      <IndianRupee className="h-3.5 w-3.5" />
-                      {bid.bidAmount.toLocaleString("en-IN")}
+
+                  <p className="text-sm mt-2 text-foreground/80">{bid.message}</p>
+
+                  {/* Envelope A technical document */}
+                  {"envelopeAUrl" in bid && bid.envelopeAUrl && (
+                    <div className="mt-2 p-2.5 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800">
+                      <p className="text-xs text-violet-700 dark:text-violet-400 font-medium mb-1.5">
+                        <FileText className="h-3 w-3 inline mr-1" />
+                        Technical Portfolio (Envelope A)
+                      </p>
+                      <a
+                        href={String(bid.envelopeAUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-violet-600 hover:underline flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        View technical document
+                      </a>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {((bid.bidAmount / req.maxBudget) * 100).toFixed(0)}% of budget
-                    </div>
-                  </div>
-                </div>
+                  )}
 
-                <p className="text-sm mt-2 text-foreground/80">{bid.message}</p>
+                  {"subcontractorName" in bid && bid.subcontractorName && (
+                    <p className="text-xs mt-1.5 text-orange-600 bg-orange-50 dark:bg-orange-950/20 rounded-lg p-2">
+                      <Users className="h-3 w-3 inline mr-1" />
+                      Sub-specialist declared: {String(bid.subcontractorName)}
+                    </p>
+                  )}
 
-                {"subcontractorName" in bid && bid.subcontractorName && (
-                  <p className="text-xs mt-1.5 text-orange-600 bg-orange-50 dark:bg-orange-950/20 rounded-lg p-2">
-                    <Users className="h-3 w-3 inline mr-1" />
-                    Sub-specialist declared: {String(bid.subcontractorName)}
-                  </p>
-                )}
+                  {bid.proofOfWork && (
+                    <p className="text-xs mt-1.5 text-muted-foreground bg-muted/50 rounded-lg p-2">
+                      <Trophy className="h-3 w-3 inline mr-1" />
+                      {bid.proofOfWork}
+                    </p>
+                  )}
 
-                {bid.proofOfWork && (
-                  <p className="text-xs mt-1.5 text-muted-foreground bg-muted/50 rounded-lg p-2">
-                    <Trophy className="h-3 w-3 inline mr-1" />
-                    {bid.proofOfWork}
-                  </p>
-                )}
-
-                {isOwner && req.status === "open" && bid.status === "active" && (
-                  <Button
-                    size="sm"
-                    className="mt-3 w-full"
-                    onClick={() => handleAcceptBid(bid.id)}
-                    disabled={acceptBidMutation.isPending}
-                    data-testid={`button-accept-bid-${bid.id}`}
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                    Accept this Bid
-                  </Button>
-                )}
-
-                {/* Dispute button — buyer can raise dispute on accepted bid */}
-                {isOwner && bid.status === "accepted" && req.status !== "open" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-2 border-red-200 text-red-600 hover:bg-red-50"
-                    onClick={() => setDisputeBid(bid)}
-                    data-testid={`button-dispute-${bid.id}`}
-                  >
-                    <Scale className="h-3.5 w-3.5 mr-1.5" />
-                    Raise a Dispute
-                  </Button>
-                )}
-
-                {bid.status === "accepted" && bid.providerId && (
-                  <div className="mt-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-                    <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-2">Bid Accepted! Connect with the provider:</p>
-                    <a
-                      href={`https://wa.me/91?text=${encodeURIComponent(`Hi ${bid.providerName}, I accepted your OmniBid for "${req.title}". Let's connect!`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 dark:text-green-400 hover:underline"
-                      data-testid="link-whatsapp"
+                  {/* Approve Envelope A (technical review) */}
+                  {isOwner && isTwoEnvelope && isEnvAPending && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-3 w-full border-violet-300 text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                      onClick={() => handleApproveEnvelopeA(bid.id)}
+                      disabled={approveEnvelopeAMutation.isPending}
+                      data-testid={`button-approve-env-a-${bid.id}`}
                     >
-                      <ExternalLink className="h-3 w-3" />
-                      Chat on WhatsApp
-                    </a>
-                  </div>
-                )}
-              </div>
-            ))}
+                      <FileText className="h-3.5 w-3.5 mr-1.5" />
+                      Approve Technical Bid — Reveal Price
+                    </Button>
+                  )}
+
+                  {isOwner && req.status === "open" && (bid.status === "active" || bid.status === "envelope_a_approved") && (
+                    <Button
+                      size="sm"
+                      className="mt-3 w-full"
+                      onClick={() => handleAcceptBid(bid.id)}
+                      disabled={acceptBidMutation.isPending}
+                      data-testid={`button-accept-bid-${bid.id}`}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                      Accept this Bid
+                    </Button>
+                  )}
+
+                  {/* Dispute button — buyer can raise dispute on accepted bid */}
+                  {isOwner && bid.status === "accepted" && req.status !== "open" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 border-red-200 text-red-600 hover:bg-red-50"
+                      onClick={() => setDisputeBid(bid)}
+                      data-testid={`button-dispute-${bid.id}`}
+                    >
+                      <Scale className="h-3.5 w-3.5 mr-1.5" />
+                      Raise a Dispute
+                    </Button>
+                  )}
+
+                  {bid.status === "accepted" && bid.providerId && (
+                    <div className="mt-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+                      <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-2">Bid Accepted! Connect with the provider:</p>
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={`https://wa.me/91?text=${encodeURIComponent(`Hi ${bid.providerName}, I accepted your OmniBid for "${req.title}". Let's connect!`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 dark:text-green-400 hover:underline"
+                          data-testid="link-whatsapp"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Chat on WhatsApp
+                        </a>
+                        {isOwner && (
+                          <button
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline"
+                            onClick={() => setLocation(`/negotiate/${id}/${bid.providerId}`)}
+                          >
+                            <MessageSquare className="h-3 w-3" />
+                            Bhaav-Taav Room
+                          </button>
+                        )}
+                        {isOwner && (
+                          <button
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                            onClick={() => setLocation(`/payment/${id}`)}
+                          >
+                            <IndianRupee className="h-3 w-3" />
+                            Pay via Escrow
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       </div>

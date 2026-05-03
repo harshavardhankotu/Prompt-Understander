@@ -18,6 +18,8 @@ import Notifications from "@/pages/notifications";
 import Subscriptions from "@/pages/subscriptions";
 import Disputes from "@/pages/disputes";
 import Compliance from "@/pages/compliance";
+import Negotiate from "@/pages/negotiate";
+import PaymentDetail from "@/pages/payment-detail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +44,9 @@ function Router() {
       <Route path="/subscriptions" component={Subscriptions} />
       <Route path="/disputes" component={Disputes} />
       <Route path="/compliance" component={Compliance} />
+      <Route path="/negotiate/:requirementId/:providerId" component={Negotiate} />
+      <Route path="/negotiate/:requirementId" component={Negotiate} />
+      <Route path="/payment/:requirementId" component={PaymentDetail} />
       <Route component={NotFound} />
     </Switch>
   );

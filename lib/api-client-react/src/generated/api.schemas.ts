@@ -135,6 +135,9 @@ export interface CreateRequirementBody {
   attachmentUrl?: string | null;
   isRecurring?: boolean;
   recurringInterval?: string | null;
+  isMegaProject?: boolean;
+  isSyndicate?: boolean;
+  jugaadMode?: boolean;
 }
 
 export type RequirementCustomData = { [key: string]: unknown } | null;
@@ -145,9 +148,19 @@ export type RequirementStatus =
 export const RequirementStatus = {
   open: "open",
   accepted: "accepted",
+  in_progress: "in_progress",
+  disputed: "disputed",
   completed: "completed",
   expired: "expired",
   cancelled: "cancelled",
+} as const;
+
+export type RequirementBidType =
+  (typeof RequirementBidType)[keyof typeof RequirementBidType];
+
+export const RequirementBidType = {
+  standard: "standard",
+  two_envelope: "two_envelope",
 } as const;
 
 export interface Requirement {
@@ -167,6 +180,10 @@ export interface Requirement {
   deadlineHours: number;
   auctionEndsAt: string;
   status: RequirementStatus;
+  bidType: RequirementBidType;
+  isMegaProject: boolean;
+  isSyndicate: boolean;
+  jugaadMode: boolean;
   attachmentUrl?: string | null;
   winningBidId?: string | null;
   isHighTicket: boolean;
@@ -189,6 +206,8 @@ export type BidStatus = (typeof BidStatus)[keyof typeof BidStatus];
 
 export const BidStatus = {
   active: "active",
+  envelope_a_pending: "envelope_a_pending",
+  envelope_a_approved: "envelope_a_approved",
   accepted: "accepted",
   rejected: "rejected",
   withdrawn: "withdrawn",
@@ -215,6 +234,10 @@ export interface Bid {
   isHighlighted: boolean;
   executorType: BidExecutorType;
   subcontractorName?: string | null;
+  envelopeAUrl?: string | null;
+  crewSizeOffered?: number | null;
+  isBackhaul: boolean;
+  bidSource: string;
   providerName: string;
   providerCity?: string | null;
   providerTrustScore: number;
@@ -261,6 +284,9 @@ export interface CreateBidBody {
   isHighlighted?: boolean;
   executorType?: CreateBidBodyExecutorType;
   subcontractorName?: string | null;
+  envelopeAUrl?: string | null;
+  crewSizeOffered?: number | null;
+  isBackhaul?: boolean;
 }
 
 export type BidWithRequirement = Bid & {
@@ -424,6 +450,123 @@ export interface ResolveDisputeBody {
   resolutionNote: string;
 }
 
+export type NegotiationMessagesItem = { [key: string]: unknown };
+
+export type NegotiationCounterOfferStatus =
+  (typeof NegotiationCounterOfferStatus)[keyof typeof NegotiationCounterOfferStatus];
+
+export const NegotiationCounterOfferStatus = {
+  none: "none",
+  pending: "pending",
+  accepted: "accepted",
+  declined: "declined",
+} as const;
+
+export interface Negotiation {
+  id: string;
+  requirementId: string;
+  buyerId: string;
+  providerId: string;
+  buyerName: string;
+  providerName: string;
+  messages: NegotiationMessagesItem[];
+  counterOfferAmount?: number | null;
+  counterOfferStatus: NegotiationCounterOfferStatus;
+  lastActivityAt: string;
+  createdAt: string;
+}
+
+export interface SendNegotiationMessageBody {
+  text: string;
+  isCounterOffer?: boolean;
+  counterAmount?: number | null;
+  providerId?: string | null;
+}
+
+export type RespondOfferBodyAction =
+  (typeof RespondOfferBodyAction)[keyof typeof RespondOfferBodyAction];
+
+export const RespondOfferBodyAction = {
+  accept: "accept",
+  decline: "decline",
+} as const;
+
+export interface RespondOfferBody {
+  action: RespondOfferBodyAction;
+}
+
+export type PaymentEscrowStatus =
+  (typeof PaymentEscrowStatus)[keyof typeof PaymentEscrowStatus];
+
+export const PaymentEscrowStatus = {
+  pending: "pending",
+  held: "held",
+  in_progress: "in_progress",
+  released: "released",
+  disputed: "disputed",
+  refunded: "refunded",
+} as const;
+
+export interface Payment {
+  id: string;
+  requirementId: string;
+  bidId: string;
+  buyerId: string;
+  providerId: string;
+  totalAmount: number;
+  platformFeePercent: number;
+  platformFeeAmount: number;
+  tdsAmount: number;
+  netToProvider: number;
+  mobilizationAdvancePct: number;
+  advanceReleased: boolean;
+  escrowStatus: PaymentEscrowStatus;
+  upiTransactionId?: string | null;
+  milestonesCompleted: number;
+  totalMilestones: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkProof {
+  id: string;
+  requirementId: string;
+  providerId: string;
+  milestoneNumber: number;
+  milestoneTitle: string;
+  notes: string;
+  proofUrl?: string | null;
+  buyerApproved: boolean;
+  buyerNote?: string | null;
+  submittedAt: string;
+  approvedAt?: string | null;
+}
+
+export interface PaymentWithProofs {
+  payment: Payment;
+  workProofs: WorkProof[];
+}
+
+export interface CreatePaymentBody {
+  bidId: string;
+  mobilizationAdvancePct?: number | null;
+  upiId?: string | null;
+  totalMilestones?: number | null;
+}
+
+export interface SubmitWorkProofBody {
+  milestoneNumber: number;
+  milestoneTitle: string;
+  notes: string;
+  proofUrl?: string | null;
+}
+
+export interface ApproveMilestoneBody {
+  workProofId: string;
+  approved: boolean;
+  buyerNote?: string | null;
+}
+
 export type ComplianceVaultAadhaarStatus =
   (typeof ComplianceVaultAadhaarStatus)[keyof typeof ComplianceVaultAadhaarStatus];
 
@@ -481,3 +624,7 @@ export const ListBidsSortBy = {
   highest_rating: "highest_rating",
   fastest_start: "fastest_start",
 } as const;
+
+export type GetNegotiationParams = {
+  providerId?: string;
+};

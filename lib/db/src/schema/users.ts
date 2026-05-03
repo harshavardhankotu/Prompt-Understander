@@ -34,6 +34,11 @@ export const usersTable = pgTable("users", {
   trustScore: integer("trust_score").notNull().default(0),
   isVerified: boolean("is_verified").notNull().default(false),
   aadhaarVerified: boolean("aadhaar_verified").notNull().default(false),
+  gstNumber: text("gst_number"),
+  crewSize: integer("crew_size").default(1),
+  benchAvailableFrom: text("bench_available_from"),
+  omniScore: integer("omni_score").notNull().default(0),
+  preferredLanguage: text("preferred_language").notNull().default("en"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -43,6 +48,7 @@ export const insertUserSchema = createInsertSchema(usersTable).omit({
   trustScore: true,
   isVerified: true,
   aadhaarVerified: true,
+  omniScore: true,
 });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof usersTable.$inferSelect;

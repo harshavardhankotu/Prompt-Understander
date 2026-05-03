@@ -239,10 +239,16 @@ export const ListRequirementsResponse = zod.object({
       status: zod.enum([
         "open",
         "accepted",
+        "in_progress",
+        "disputed",
         "completed",
         "expired",
         "cancelled",
       ]),
+      bidType: zod.enum(["standard", "two_envelope"]),
+      isMegaProject: zod.boolean(),
+      isSyndicate: zod.boolean(),
+      jugaadMode: zod.boolean(),
       attachmentUrl: zod.string().nullish(),
       winningBidId: zod.string().nullish(),
       isHighTicket: zod.boolean(),
@@ -275,6 +281,9 @@ export const CreateRequirementBody = zod.object({
   attachmentUrl: zod.string().nullish(),
   isRecurring: zod.boolean().optional(),
   recurringInterval: zod.string().nullish(),
+  isMegaProject: zod.boolean().optional(),
+  isSyndicate: zod.boolean().optional(),
+  jugaadMode: zod.boolean().optional(),
 });
 
 /**
@@ -296,7 +305,19 @@ export const ListMyRequirementsResponseItem = zod.object({
   maxBudget: zod.number(),
   deadlineHours: zod.number(),
   auctionEndsAt: zod.string(),
-  status: zod.enum(["open", "accepted", "completed", "expired", "cancelled"]),
+  status: zod.enum([
+    "open",
+    "accepted",
+    "in_progress",
+    "disputed",
+    "completed",
+    "expired",
+    "cancelled",
+  ]),
+  bidType: zod.enum(["standard", "two_envelope"]),
+  isMegaProject: zod.boolean(),
+  isSyndicate: zod.boolean(),
+  jugaadMode: zod.boolean(),
   attachmentUrl: zod.string().nullish(),
   winningBidId: zod.string().nullish(),
   isHighTicket: zod.boolean(),
@@ -337,7 +358,19 @@ export const GetRequirementResponse = zod
     maxBudget: zod.number(),
     deadlineHours: zod.number(),
     auctionEndsAt: zod.string(),
-    status: zod.enum(["open", "accepted", "completed", "expired", "cancelled"]),
+    status: zod.enum([
+      "open",
+      "accepted",
+      "in_progress",
+      "disputed",
+      "completed",
+      "expired",
+      "cancelled",
+    ]),
+    bidType: zod.enum(["standard", "two_envelope"]),
+    isMegaProject: zod.boolean(),
+    isSyndicate: zod.boolean(),
+    jugaadMode: zod.boolean(),
     attachmentUrl: zod.string().nullish(),
     winningBidId: zod.string().nullish(),
     isHighTicket: zod.boolean(),
@@ -385,10 +418,21 @@ export const GetRequirementResponse = zod
           proofOfWork: zod.string().nullish(),
           portfolioUrl: zod.string().nullish(),
           estimatedCompletion: zod.string(),
-          status: zod.enum(["active", "accepted", "rejected", "withdrawn"]),
+          status: zod.enum([
+            "active",
+            "envelope_a_pending",
+            "envelope_a_approved",
+            "accepted",
+            "rejected",
+            "withdrawn",
+          ]),
           isHighlighted: zod.boolean(),
           executorType: zod.enum(["self", "partial"]),
           subcontractorName: zod.string().nullish(),
+          envelopeAUrl: zod.string().nullish(),
+          crewSizeOffered: zod.number().nullish(),
+          isBackhaul: zod.boolean(),
+          bidSource: zod.string(),
           providerName: zod.string(),
           providerCity: zod.string().nullish(),
           providerTrustScore: zod.number(),
@@ -442,7 +486,19 @@ export const CancelRequirementResponse = zod.object({
   maxBudget: zod.number(),
   deadlineHours: zod.number(),
   auctionEndsAt: zod.string(),
-  status: zod.enum(["open", "accepted", "completed", "expired", "cancelled"]),
+  status: zod.enum([
+    "open",
+    "accepted",
+    "in_progress",
+    "disputed",
+    "completed",
+    "expired",
+    "cancelled",
+  ]),
+  bidType: zod.enum(["standard", "two_envelope"]),
+  isMegaProject: zod.boolean(),
+  isSyndicate: zod.boolean(),
+  jugaadMode: zod.boolean(),
   attachmentUrl: zod.string().nullish(),
   winningBidId: zod.string().nullish(),
   isHighTicket: zod.boolean(),
@@ -483,7 +539,19 @@ export const AcceptBidResponse = zod.object({
   maxBudget: zod.number(),
   deadlineHours: zod.number(),
   auctionEndsAt: zod.string(),
-  status: zod.enum(["open", "accepted", "completed", "expired", "cancelled"]),
+  status: zod.enum([
+    "open",
+    "accepted",
+    "in_progress",
+    "disputed",
+    "completed",
+    "expired",
+    "cancelled",
+  ]),
+  bidType: zod.enum(["standard", "two_envelope"]),
+  isMegaProject: zod.boolean(),
+  isSyndicate: zod.boolean(),
+  jugaadMode: zod.boolean(),
   attachmentUrl: zod.string().nullish(),
   winningBidId: zod.string().nullish(),
   isHighTicket: zod.boolean(),
@@ -519,10 +587,21 @@ export const ListBidsResponseItem = zod.object({
   proofOfWork: zod.string().nullish(),
   portfolioUrl: zod.string().nullish(),
   estimatedCompletion: zod.string(),
-  status: zod.enum(["active", "accepted", "rejected", "withdrawn"]),
+  status: zod.enum([
+    "active",
+    "envelope_a_pending",
+    "envelope_a_approved",
+    "accepted",
+    "rejected",
+    "withdrawn",
+  ]),
   isHighlighted: zod.boolean(),
   executorType: zod.enum(["self", "partial"]),
   subcontractorName: zod.string().nullish(),
+  envelopeAUrl: zod.string().nullish(),
+  crewSizeOffered: zod.number().nullish(),
+  isBackhaul: zod.boolean(),
+  bidSource: zod.string(),
   providerName: zod.string(),
   providerCity: zod.string().nullish(),
   providerTrustScore: zod.number(),
@@ -550,6 +629,9 @@ export const CreateBidBody = zod.object({
   isHighlighted: zod.boolean().optional(),
   executorType: zod.enum(["self", "partial"]).optional(),
   subcontractorName: zod.string().nullish(),
+  envelopeAUrl: zod.string().nullish(),
+  crewSizeOffered: zod.number().nullish(),
+  isBackhaul: zod.boolean().optional(),
 });
 
 /**
@@ -568,10 +650,21 @@ export const WithdrawBidResponse = zod.object({
   proofOfWork: zod.string().nullish(),
   portfolioUrl: zod.string().nullish(),
   estimatedCompletion: zod.string(),
-  status: zod.enum(["active", "accepted", "rejected", "withdrawn"]),
+  status: zod.enum([
+    "active",
+    "envelope_a_pending",
+    "envelope_a_approved",
+    "accepted",
+    "rejected",
+    "withdrawn",
+  ]),
   isHighlighted: zod.boolean(),
   executorType: zod.enum(["self", "partial"]),
   subcontractorName: zod.string().nullish(),
+  envelopeAUrl: zod.string().nullish(),
+  crewSizeOffered: zod.number().nullish(),
+  isBackhaul: zod.boolean(),
+  bidSource: zod.string(),
   providerName: zod.string(),
   providerCity: zod.string().nullish(),
   providerTrustScore: zod.number(),
@@ -595,10 +688,21 @@ export const ListMyBidsResponseItem = zod
     proofOfWork: zod.string().nullish(),
     portfolioUrl: zod.string().nullish(),
     estimatedCompletion: zod.string(),
-    status: zod.enum(["active", "accepted", "rejected", "withdrawn"]),
+    status: zod.enum([
+      "active",
+      "envelope_a_pending",
+      "envelope_a_approved",
+      "accepted",
+      "rejected",
+      "withdrawn",
+    ]),
     isHighlighted: zod.boolean(),
     executorType: zod.enum(["self", "partial"]),
     subcontractorName: zod.string().nullish(),
+    envelopeAUrl: zod.string().nullish(),
+    crewSizeOffered: zod.number().nullish(),
+    isBackhaul: zod.boolean(),
+    bidSource: zod.string(),
     providerName: zod.string(),
     providerCity: zod.string().nullish(),
     providerTrustScore: zod.number(),
@@ -629,10 +733,16 @@ export const ListMyBidsResponseItem = zod
         status: zod.enum([
           "open",
           "accepted",
+          "in_progress",
+          "disputed",
           "completed",
           "expired",
           "cancelled",
         ]),
+        bidType: zod.enum(["standard", "two_envelope"]),
+        isMegaProject: zod.boolean(),
+        isSyndicate: zod.boolean(),
+        jugaadMode: zod.boolean(),
         attachmentUrl: zod.string().nullish(),
         winningBidId: zod.string().nullish(),
         isHighTicket: zod.boolean(),
@@ -761,10 +871,16 @@ export const GetBuyerDashboardResponse = zod.object({
       status: zod.enum([
         "open",
         "accepted",
+        "in_progress",
+        "disputed",
         "completed",
         "expired",
         "cancelled",
       ]),
+      bidType: zod.enum(["standard", "two_envelope"]),
+      isMegaProject: zod.boolean(),
+      isSyndicate: zod.boolean(),
+      jugaadMode: zod.boolean(),
       attachmentUrl: zod.string().nullish(),
       winningBidId: zod.string().nullish(),
       isHighTicket: zod.boolean(),
@@ -801,10 +917,21 @@ export const GetProviderDashboardResponse = zod.object({
         proofOfWork: zod.string().nullish(),
         portfolioUrl: zod.string().nullish(),
         estimatedCompletion: zod.string(),
-        status: zod.enum(["active", "accepted", "rejected", "withdrawn"]),
+        status: zod.enum([
+          "active",
+          "envelope_a_pending",
+          "envelope_a_approved",
+          "accepted",
+          "rejected",
+          "withdrawn",
+        ]),
         isHighlighted: zod.boolean(),
         executorType: zod.enum(["self", "partial"]),
         subcontractorName: zod.string().nullish(),
+        envelopeAUrl: zod.string().nullish(),
+        crewSizeOffered: zod.number().nullish(),
+        isBackhaul: zod.boolean(),
+        bidSource: zod.string(),
         providerName: zod.string(),
         providerCity: zod.string().nullish(),
         providerTrustScore: zod.number(),
@@ -835,10 +962,16 @@ export const GetProviderDashboardResponse = zod.object({
             status: zod.enum([
               "open",
               "accepted",
+              "in_progress",
+              "disputed",
               "completed",
               "expired",
               "cancelled",
             ]),
+            bidType: zod.enum(["standard", "two_envelope"]),
+            isMegaProject: zod.boolean(),
+            isSyndicate: zod.boolean(),
+            jugaadMode: zod.boolean(),
             attachmentUrl: zod.string().nullish(),
             winningBidId: zod.string().nullish(),
             isHighTicket: zod.boolean(),
@@ -1012,6 +1145,232 @@ export const UpdateMyComplianceResponse = zod.object({
   isEmpanelled: zod.boolean(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
+});
+
+/**
+ * @summary Get or create negotiation thread
+ */
+export const GetNegotiationParams = zod.object({
+  requirementId: zod.coerce.string(),
+});
+
+export const GetNegotiationQueryParams = zod.object({
+  providerId: zod.coerce.string().optional(),
+});
+
+export const GetNegotiationResponse = zod.object({
+  id: zod.string(),
+  requirementId: zod.string(),
+  buyerId: zod.string(),
+  providerId: zod.string(),
+  buyerName: zod.string(),
+  providerName: zod.string(),
+  messages: zod.array(zod.record(zod.string(), zod.unknown())),
+  counterOfferAmount: zod.number().nullish(),
+  counterOfferStatus: zod.enum(["none", "pending", "accepted", "declined"]),
+  lastActivityAt: zod.string(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Send a message or counter-offer in negotiation room
+ */
+export const SendNegotiationMessageParams = zod.object({
+  requirementId: zod.coerce.string(),
+});
+
+export const SendNegotiationMessageBody = zod.object({
+  text: zod.string(),
+  isCounterOffer: zod.boolean().optional(),
+  counterAmount: zod.number().nullish(),
+  providerId: zod.string().nullish(),
+});
+
+export const SendNegotiationMessageResponse = zod.object({
+  id: zod.string(),
+  requirementId: zod.string(),
+  buyerId: zod.string(),
+  providerId: zod.string(),
+  buyerName: zod.string(),
+  providerName: zod.string(),
+  messages: zod.array(zod.record(zod.string(), zod.unknown())),
+  counterOfferAmount: zod.number().nullish(),
+  counterOfferStatus: zod.enum(["none", "pending", "accepted", "declined"]),
+  lastActivityAt: zod.string(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Provider accepts or declines a counter-offer
+ */
+export const RespondToCounterOfferParams = zod.object({
+  requirementId: zod.coerce.string(),
+});
+
+export const RespondToCounterOfferBody = zod.object({
+  action: zod.enum(["accept", "decline"]),
+});
+
+export const RespondToCounterOfferResponse = zod.object({
+  id: zod.string(),
+  requirementId: zod.string(),
+  buyerId: zod.string(),
+  providerId: zod.string(),
+  buyerName: zod.string(),
+  providerName: zod.string(),
+  messages: zod.array(zod.record(zod.string(), zod.unknown())),
+  counterOfferAmount: zod.number().nullish(),
+  counterOfferStatus: zod.enum(["none", "pending", "accepted", "declined"]),
+  lastActivityAt: zod.string(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Get payment and work proofs for a requirement
+ */
+export const GetPaymentParams = zod.object({
+  requirementId: zod.coerce.string(),
+});
+
+export const GetPaymentResponse = zod.object({
+  payment: zod.object({
+    id: zod.string(),
+    requirementId: zod.string(),
+    bidId: zod.string(),
+    buyerId: zod.string(),
+    providerId: zod.string(),
+    totalAmount: zod.number(),
+    platformFeePercent: zod.number(),
+    platformFeeAmount: zod.number(),
+    tdsAmount: zod.number(),
+    netToProvider: zod.number(),
+    mobilizationAdvancePct: zod.number(),
+    advanceReleased: zod.boolean(),
+    escrowStatus: zod.enum([
+      "pending",
+      "held",
+      "in_progress",
+      "released",
+      "disputed",
+      "refunded",
+    ]),
+    upiTransactionId: zod.string().nullish(),
+    milestonesCompleted: zod.number(),
+    totalMilestones: zod.number(),
+    createdAt: zod.string(),
+    updatedAt: zod.string(),
+  }),
+  workProofs: zod.array(
+    zod.object({
+      id: zod.string(),
+      requirementId: zod.string(),
+      providerId: zod.string(),
+      milestoneNumber: zod.number(),
+      milestoneTitle: zod.string(),
+      notes: zod.string(),
+      proofUrl: zod.string().nullish(),
+      buyerApproved: zod.boolean(),
+      buyerNote: zod.string().nullish(),
+      submittedAt: zod.string(),
+      approvedAt: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Initiate UPI escrow payment (mock)
+ */
+export const CreatePaymentParams = zod.object({
+  requirementId: zod.coerce.string(),
+});
+
+export const CreatePaymentBody = zod.object({
+  bidId: zod.string(),
+  mobilizationAdvancePct: zod.number().nullish(),
+  upiId: zod.string().nullish(),
+  totalMilestones: zod.number().nullish(),
+});
+
+/**
+ * @summary Provider submits milestone work proof
+ */
+export const SubmitWorkProofParams = zod.object({
+  requirementId: zod.coerce.string(),
+});
+
+export const SubmitWorkProofBody = zod.object({
+  milestoneNumber: zod.number(),
+  milestoneTitle: zod.string(),
+  notes: zod.string(),
+  proofUrl: zod.string().nullish(),
+});
+
+/**
+ * @summary Buyer approves a milestone and releases escrow portion
+ */
+export const ApproveMilestoneParams = zod.object({
+  requirementId: zod.coerce.string(),
+});
+
+export const ApproveMilestoneBody = zod.object({
+  workProofId: zod.string(),
+  approved: zod.boolean(),
+  buyerNote: zod.string().nullish(),
+});
+
+export const ApproveMilestoneResponse = zod.object({
+  id: zod.string(),
+  requirementId: zod.string(),
+  providerId: zod.string(),
+  milestoneNumber: zod.number(),
+  milestoneTitle: zod.string(),
+  notes: zod.string(),
+  proofUrl: zod.string().nullish(),
+  buyerApproved: zod.boolean(),
+  buyerNote: zod.string().nullish(),
+  submittedAt: zod.string(),
+  approvedAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Buyer approves technical bid (Envelope A), reveals financial amount
+ */
+export const ApproveEnvelopeAParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ApproveEnvelopeAResponse = zod.object({
+  id: zod.string(),
+  requirementId: zod.string(),
+  providerId: zod.string(),
+  bidAmount: zod.number(),
+  message: zod.string(),
+  proofOfWork: zod.string().nullish(),
+  portfolioUrl: zod.string().nullish(),
+  estimatedCompletion: zod.string(),
+  status: zod.enum([
+    "active",
+    "envelope_a_pending",
+    "envelope_a_approved",
+    "accepted",
+    "rejected",
+    "withdrawn",
+  ]),
+  isHighlighted: zod.boolean(),
+  executorType: zod.enum(["self", "partial"]),
+  subcontractorName: zod.string().nullish(),
+  envelopeAUrl: zod.string().nullish(),
+  crewSizeOffered: zod.number().nullish(),
+  isBackhaul: zod.boolean(),
+  bidSource: zod.string(),
+  providerName: zod.string(),
+  providerCity: zod.string().nullish(),
+  providerTrustScore: zod.number(),
+  providerIsVerified: zod.boolean(),
+  providerAvgRating: zod.number().nullish(),
+  providerReviewCount: zod.number(),
+  providerSubscriptionPlan: zod.string().nullish(),
+  createdAt: zod.string(),
 });
 
 /**

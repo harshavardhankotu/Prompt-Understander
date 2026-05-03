@@ -20,6 +20,21 @@ A full-stack real-time reverse auction marketplace where buyers post problems an
 - **Database**: PostgreSQL via Drizzle ORM
 - **Auth**: JWT stored in `localStorage` as `omnibid_token`, passed via `Authorization: Bearer <token>` header
 
+## Key Features (Steps 1–10 Complete)
+
+| Feature | Description |
+|---------|-------------|
+| **Live Bid Feed** | Real-time polling on requirement detail; Bid War badge (≥5 bids) with flame animation |
+| **Two-Envelope RFP** | Auto-set for enterprise_buyer + ≥₹1L budgets; Envelope A (technical) reviewed before financial reveal |
+| **Bhaav-Taav Room** | `/negotiate/:requirementId/:providerId` — chat with counter-offer; provider accept/decline; 15-min FOMO |
+| **UPI Escrow** | `/payment/:requirementId` — mock UPI QR + TxnID; mobilization advance; milestone-based release; TDS @2% for >₹30K |
+| **Work Proof Milestones** | Provider submits milestone proof; buyer approves to release escrow; completion marks requirement done |
+| **Anti-Ghost Contractor** | Executor declaration (Self / Partial) required on all bids |
+| **Backhaul / Empty Slot** | Toggle on bid form for cancellation/empty-slot rates |
+| **Mega Project Toggle** | Requirement flag for sub-task bidding |
+| **Syndicate (Group Buy)** | Requirement flag for neighbourhood pooling |
+| **Jugaad Mode** | Post without knowing the category — cross-sector bidding |
+
 ## 4-Role Architecture (Limber UK Model)
 
 | Role | Type | Description |
@@ -37,8 +52,11 @@ Legacy roles (`buyer`, `provider`, `both`) are preserved for backward compatibil
 |-------|---------|
 | `users` | All 4 roles + legacy roles; `user_role` enum has 7 values |
 | `categories` | 20 sectors with JSONB `custom_fields` + `priceFloor` |
-| `requirements` | Buyer-posted problems; `isRecurring`, `recurringInterval`, `depositAmount` |
-| `bids` | Provider bids; `executorType`, `subcontractorName`, `isHighlighted` (new provider boost) |
+| `requirements` | `bidType` (standard/two_envelope), `isMegaProject`, `isSyndicate`, `jugaadMode`, `isRecurring`, `depositAmount` |
+| `bids` | `envelopeAUrl`, `crewSizeOffered`, `isBackhaul`, `bidSource`, `executorType`, `subcontractorName`, `isHighlighted` |
+| `negotiations` | Bhaav-Taav negotiation thread; JSONB `messages`, `counterOfferAmount`, `counterOfferStatus` |
+| `payments` | UPI escrow mock; `escrowStatus`, `platformFeePercent`, `tdsAmount`, `mobilizationAdvancePct`, `milestonesCompleted` |
+| `work_proofs` | Milestone proof submission + buyer approval; `milestoneNumber`, `milestoneTitle`, `notes`, `buyerApproved` |
 | `reviews` | Star ratings post-completion |
 | `provider_subscriptions` | Plan management (free/starter/pro) — auto-created for provider roles |
 | `notifications` | In-app notification system |

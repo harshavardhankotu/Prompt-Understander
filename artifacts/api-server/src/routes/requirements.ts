@@ -25,6 +25,10 @@ function formatReq(r: typeof requirementsTable.$inferSelect, cat: typeof categor
     deadlineHours: r.deadlineHours,
     auctionEndsAt: r.auctionEndsAt.toISOString(),
     status: r.status,
+    bidType: r.bidType,
+    isMegaProject: r.isMegaProject,
+    isSyndicate: r.isSyndicate,
+    jugaadMode: r.jugaadMode,
     attachmentUrl: r.attachmentUrl,
     winningBidId: r.winningBidId,
     isHighTicket: r.isHighTicket,
@@ -90,9 +94,15 @@ router.post("/requirements", requireAuth, async (req, res): Promise<void> => {
   }
 
   const { categoryId, title, description, customData, city, state, pincode, maxBudget, deadlineHours, attachmentUrl, isRecurring, recurringInterval } = parsed.data;
+  const pd = parsed.data as { isMegaProject?: boolean; isSyndicate?: boolean; jugaadMode?: boolean };
   const auctionEndsAt = new Date(Date.now() + deadlineHours * 60 * 60 * 1000);
   const isHighTicket = maxBudget > 10000;
   const depositAmount = isHighTicket ? String(Math.round(maxBudget * 0.1)) : null;
+
+  // Auto set two_envelope for high-budget enterprise requirements
+  const [buyer] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.userId));
+  const isEnterprise = buyer?.role === "enterprise_buyer";
+  const bidType: "standard" | "two_envelope" = (isEnterprise && maxBudget >= 100000) ? "two_envelope" : "standard";
 
   const [requirement] = await db.insert(requirementsTable).values({
     buyerId: req.user!.userId,
@@ -107,6 +117,10 @@ router.post("/requirements", requireAuth, async (req, res): Promise<void> => {
     deadlineHours,
     auctionEndsAt,
     isHighTicket,
+    bidType,
+    isMegaProject: pd.isMegaProject ?? false,
+    isSyndicate: pd.isSyndicate ?? false,
+    jugaadMode: pd.jugaadMode ?? false,
     isRecurring: isRecurring ?? false,
     recurringInterval: recurringInterval ?? null,
     depositAmount,
@@ -114,7 +128,6 @@ router.post("/requirements", requireAuth, async (req, res): Promise<void> => {
   }).returning();
 
   const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, categoryId));
-  const [buyer] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.userId));
 
   res.status(201).json(formatReq(requirement, cat, buyer, 0, null));
 });
@@ -195,6 +208,10 @@ router.get("/requirements/:id", optionalAuth, async (req, res): Promise<void> =>
       estimatedCompletion: b.estimatedCompletion,
       executorType: b.executorType,
       subcontractorName: b.subcontractorName,
+      envelopeAUrl: b.envelopeAUrl,
+      crewSizeOffered: b.crewSizeOffered,
+      isBackhaul: b.isBackhaul,
+      bidSource: b.bidSource,
       status: b.status,
       isHighlighted: b.isHighlighted,
       providerName: provider?.name ?? "Unknown",

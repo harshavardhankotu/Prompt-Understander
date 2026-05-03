@@ -17,9 +17,16 @@ import { categoriesTable } from "./categories";
 export const requirementStatusEnum = pgEnum("requirement_status", [
   "open",
   "accepted",
+  "in_progress",
+  "disputed",
   "completed",
   "expired",
   "cancelled",
+]);
+
+export const bidTypeEnum = pgEnum("bid_type", [
+  "standard",
+  "two_envelope",
 ]);
 
 export const requirementsTable = pgTable("requirements", {
@@ -40,6 +47,10 @@ export const requirementsTable = pgTable("requirements", {
   deadlineHours: integer("deadline_hours").notNull(),
   auctionEndsAt: timestamp("auction_ends_at", { withTimezone: true }).notNull(),
   status: requirementStatusEnum("status").notNull().default("open"),
+  bidType: bidTypeEnum("bid_type").notNull().default("standard"),
+  isMegaProject: boolean("is_mega_project").notNull().default(false),
+  isSyndicate: boolean("is_syndicate").notNull().default(false),
+  jugaadMode: boolean("jugaad_mode").notNull().default(false),
   attachmentUrl: text("attachment_url"),
   winningBidId: uuid("winning_bid_id"),
   isHighTicket: boolean("is_high_ticket").notNull().default(false),

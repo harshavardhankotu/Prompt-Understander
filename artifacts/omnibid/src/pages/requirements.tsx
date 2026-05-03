@@ -43,7 +43,7 @@ export default function Requirements() {
               {data?.total ?? 0} active {data?.total === 1 ? "requirement" : "requirements"} waiting for bids
             </p>
           </div>
-          {user && (user.role === "buyer" || user.role === "both") && (
+          {user && (["buyer", "both", "retail_buyer", "enterprise_buyer"].includes(user.role)) && (
             <Button onClick={() => setLocation("/requirements/new")} data-testid="button-post-problem">
               <PlusCircle className="h-4 w-4 mr-1.5" />
               Post Problem

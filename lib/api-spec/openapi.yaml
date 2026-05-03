@@ -19,6 +19,8 @@ tags:
   - name: dashboard
   - name: disputes
   - name: compliance
+  - name: negotiations
+  - name: payments
 
 paths:
   /healthz:
@@ -649,6 +651,193 @@ paths:
               schema:
                 $ref: "#/components/schemas/ComplianceVault"
 
+  # NEGOTIATIONS (Bhaav-Taav)
+  /requirements/{requirementId}/negotiations:
+    get:
+      operationId: getNegotiation
+      tags: [negotiations]
+      summary: Get or create negotiation thread
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: providerId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Negotiation thread
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Negotiation"
+
+  /requirements/{requirementId}/negotiations/message:
+    post:
+      operationId: sendNegotiationMessage
+      tags: [negotiations]
+      summary: Send a message or counter-offer in negotiation room
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendNegotiationMessageBody"
+      responses:
+        "200":
+          description: Updated negotiation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Negotiation"
+
+  /requirements/{requirementId}/negotiations/respond:
+    post:
+      operationId: respondToCounterOffer
+      tags: [negotiations]
+      summary: Provider accepts or declines a counter-offer
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RespondOfferBody"
+      responses:
+        "200":
+          description: Updated negotiation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Negotiation"
+
+  # PAYMENTS (UPI Escrow)
+  /requirements/{requirementId}/payment:
+    get:
+      operationId: getPayment
+      tags: [payments]
+      summary: Get payment and work proofs for a requirement
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment with work proofs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentWithProofs"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Initiate UPI escrow payment (mock)
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentBody"
+      responses:
+        "201":
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentWithProofs"
+
+  /requirements/{requirementId}/payment/submit-proof:
+    post:
+      operationId: submitWorkProof
+      tags: [payments]
+      summary: Provider submits milestone work proof
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitWorkProofBody"
+      responses:
+        "201":
+          description: Work proof submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkProof"
+
+  /requirements/{requirementId}/payment/approve-milestone:
+    post:
+      operationId: approveMilestone
+      tags: [payments]
+      summary: Buyer approves a milestone and releases escrow portion
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveMilestoneBody"
+      responses:
+        "200":
+          description: Milestone approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkProof"
+
+  # BIDS - Envelope A Approval
+  /bids/{id}/approve-envelope-a:
+    post:
+      operationId: approveEnvelopeA
+      tags: [bids]
+      summary: Buyer approves technical bid (Envelope A), reveals financial amount
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Envelope A approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bid"
+
   /requirements/stats/{id}:
     get:
       operationId: getRequirementStats
@@ -865,6 +1054,12 @@ components:
         recurringInterval:
           type: string
           nullable: true
+        isMegaProject:
+          type: boolean
+        isSyndicate:
+          type: boolean
+        jugaadMode:
+          type: boolean
       required: [categoryId, title, description, city, state, maxBudget, deadlineHours]
 
     Requirement:
@@ -905,7 +1100,16 @@ components:
           type: string
         status:
           type: string
-          enum: [open, accepted, completed, expired, cancelled]
+          enum: [open, accepted, in_progress, disputed, completed, expired, cancelled]
+        bidType:
+          type: string
+          enum: [standard, two_envelope]
+        isMegaProject:
+          type: boolean
+        isSyndicate:
+          type: boolean
+        jugaadMode:
+          type: boolean
         attachmentUrl:
           type: string
           nullable: true
@@ -933,7 +1137,7 @@ components:
           type: string
         createdAt:
           type: string
-      required: [id, buyerId, categoryId, categoryName, categorySlug, categoryIconName, title, description, city, state, maxBudget, deadlineHours, auctionEndsAt, status, isHighTicket, isRecurring, depositPaid, bidCount, buyerName, createdAt]
+      required: [id, buyerId, categoryId, categoryName, categorySlug, categoryIconName, title, description, city, state, maxBudget, deadlineHours, auctionEndsAt, status, bidType, isMegaProject, isSyndicate, jugaadMode, isHighTicket, isRecurring, depositPaid, bidCount, buyerName, createdAt]
 
     RequirementListResponse:
       type: object
@@ -1011,6 +1215,14 @@ components:
         subcontractorName:
           type: string
           nullable: true
+        envelopeAUrl:
+          type: string
+          nullable: true
+        crewSizeOffered:
+          type: number
+          nullable: true
+        isBackhaul:
+          type: boolean
       required: [bidAmount, message, estimatedCompletion]
 
     Bid:
@@ -1036,7 +1248,7 @@ components:
           type: string
         status:
           type: string
-          enum: [active, accepted, rejected, withdrawn]
+          enum: [active, envelope_a_pending, envelope_a_approved, accepted, rejected, withdrawn]
         isHighlighted:
           type: boolean
         executorType:
@@ -1045,6 +1257,16 @@ components:
         subcontractorName:
           type: string
           nullable: true
+        envelopeAUrl:
+          type: string
+          nullable: true
+        crewSizeOffered:
+          type: number
+          nullable: true
+        isBackhaul:
+          type: boolean
+        bidSource:
+          type: string
         providerName:
           type: string
         providerCity:
@@ -1064,7 +1286,7 @@ components:
           nullable: true
         createdAt:
           type: string
-      required: [id, requirementId, providerId, bidAmount, message, estimatedCompletion, status, isHighlighted, executorType, providerName, providerTrustScore, providerIsVerified, providerReviewCount, createdAt]
+      required: [id, requirementId, providerId, bidAmount, message, estimatedCompletion, status, isHighlighted, isBackhaul, bidSource, executorType, providerName, providerTrustScore, providerIsVerified, providerReviewCount, createdAt]
 
     BidWithRequirement:
       allOf:
@@ -1305,6 +1527,187 @@ components:
         resolutionNote:
           type: string
       required: [resolution, resolutionNote]
+
+    Negotiation:
+      type: object
+      properties:
+        id:
+          type: string
+        requirementId:
+          type: string
+        buyerId:
+          type: string
+        providerId:
+          type: string
+        buyerName:
+          type: string
+        providerName:
+          type: string
+        messages:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        counterOfferAmount:
+          type: number
+          nullable: true
+        counterOfferStatus:
+          type: string
+          enum: [none, pending, accepted, declined]
+        lastActivityAt:
+          type: string
+        createdAt:
+          type: string
+      required: [id, requirementId, buyerId, providerId, buyerName, providerName, messages, counterOfferStatus, lastActivityAt, createdAt]
+
+    SendNegotiationMessageBody:
+      type: object
+      properties:
+        text:
+          type: string
+        isCounterOffer:
+          type: boolean
+        counterAmount:
+          type: number
+          nullable: true
+        providerId:
+          type: string
+          nullable: true
+      required: [text]
+
+    RespondOfferBody:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [accept, decline]
+      required: [action]
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        requirementId:
+          type: string
+        bidId:
+          type: string
+        buyerId:
+          type: string
+        providerId:
+          type: string
+        totalAmount:
+          type: number
+        platformFeePercent:
+          type: number
+        platformFeeAmount:
+          type: number
+        tdsAmount:
+          type: number
+        netToProvider:
+          type: number
+        mobilizationAdvancePct:
+          type: number
+        advanceReleased:
+          type: boolean
+        escrowStatus:
+          type: string
+          enum: [pending, held, in_progress, released, disputed, refunded]
+        upiTransactionId:
+          type: string
+          nullable: true
+        milestonesCompleted:
+          type: number
+        totalMilestones:
+          type: number
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, requirementId, bidId, buyerId, providerId, totalAmount, platformFeePercent, platformFeeAmount, tdsAmount, netToProvider, mobilizationAdvancePct, advanceReleased, escrowStatus, milestonesCompleted, totalMilestones, createdAt, updatedAt]
+
+    WorkProof:
+      type: object
+      properties:
+        id:
+          type: string
+        requirementId:
+          type: string
+        providerId:
+          type: string
+        milestoneNumber:
+          type: number
+        milestoneTitle:
+          type: string
+        notes:
+          type: string
+        proofUrl:
+          type: string
+          nullable: true
+        buyerApproved:
+          type: boolean
+        buyerNote:
+          type: string
+          nullable: true
+        submittedAt:
+          type: string
+        approvedAt:
+          type: string
+          nullable: true
+      required: [id, requirementId, providerId, milestoneNumber, milestoneTitle, notes, buyerApproved, submittedAt]
+
+    PaymentWithProofs:
+      type: object
+      properties:
+        payment:
+          $ref: "#/components/schemas/Payment"
+        workProofs:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkProof"
+      required: [payment, workProofs]
+
+    CreatePaymentBody:
+      type: object
+      properties:
+        bidId:
+          type: string
+        mobilizationAdvancePct:
+          type: number
+          nullable: true
+        upiId:
+          type: string
+          nullable: true
+        totalMilestones:
+          type: number
+          nullable: true
+      required: [bidId]
+
+    SubmitWorkProofBody:
+      type: object
+      properties:
+        milestoneNumber:
+          type: number
+        milestoneTitle:
+          type: string
+        notes:
+          type: string
+        proofUrl:
+          type: string
+          nullable: true
+      required: [milestoneNumber, milestoneTitle, notes]
+
+    ApproveMilestoneBody:
+      type: object
+      properties:
+        workProofId:
+          type: string
+        approved:
+          type: boolean
+        buyerNote:
+          type: string
+          nullable: true
+      required: [workProofId, approved]
 
     ComplianceVault:
       type: object

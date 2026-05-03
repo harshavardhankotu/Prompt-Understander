@@ -18,9 +18,12 @@ import {
   getListBidsQueryKey,
   useGetMySubscription,
 } from "@workspace/api-client-react";
+import { useAuth } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, IndianRupee, Loader2, Shield, Star, UserCheck, Users, Zap } from "lucide-react";
+import {
+  AlertTriangle, ExternalLink, FileText, IndianRupee, Loader2, Shield, Star, Truck, UserCheck, Users, Zap,
+} from "lucide-react";
 
 const schema = z.object({
   bidAmount: z.number().min(1, "Enter a bid amount"),
@@ -30,6 +33,9 @@ const schema = z.object({
   executorType: z.enum(["self", "partial"]),
   subcontractorName: z.string().optional(),
   isHighlighted: z.boolean(),
+  envelopeAUrl: z.string().url("Enter a valid URL").or(z.literal("")).optional(),
+  isBackhaul: z.boolean(),
+  crewSizeOffered: z.number().min(1).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -49,6 +55,7 @@ export default function NewBid() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   const { data: req } = useGetRequirement(requirementId, {
     query: { queryKey: getGetRequirementQueryKey(requirementId), enabled: !!requirementId },
@@ -56,6 +63,9 @@ export default function NewBid() {
 
   const { data: sub } = useGetMySubscription();
   const createBidMutation = useCreateBid();
+
+  const isTwoEnvelope = req?.bidType === "two_envelope";
+  const isAgencyProvider = user?.role === "agency_provider";
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -67,12 +77,16 @@ export default function NewBid() {
       executorType: "self",
       subcontractorName: "",
       isHighlighted: false,
+      envelopeAUrl: "",
+      isBackhaul: false,
+      crewSizeOffered: isAgencyProvider ? 1 : undefined,
     },
   });
 
   const isHighlighted = form.watch("isHighlighted");
   const executorType = form.watch("executorType");
   const bidAmount = form.watch("bidAmount");
+  const isBackhaul = form.watch("isBackhaul");
 
   const priceFloor = req?.category && "priceFloor" in req.category ? (req.category as { priceFloor?: number | null }).priceFloor : null;
   const belowFloor = priceFloor && bidAmount > 0 && bidAmount < priceFloor;
@@ -89,11 +103,14 @@ export default function NewBid() {
           executorType: data.executorType,
           subcontractorName: data.subcontractorName || undefined,
           isHighlighted: data.isHighlighted,
-        },
+          envelopeAUrl: data.envelopeAUrl || undefined,
+          crewSizeOffered: data.crewSizeOffered || undefined,
+          isBackhaul: data.isBackhaul,
+        } as Parameters<typeof createBidMutation.mutate>[0]["data"],
       },
       {
         onSuccess: () => {
-          toast({ title: "Bid placed!", description: "The buyer has been notified." });
+          toast({ title: "Bid placed!", description: isTwoEnvelope ? "Your technical bid is pending buyer review." : "The buyer has been notified." });
           qc.invalidateQueries({ queryKey: getListBidsQueryKey(requirementId) });
           qc.invalidateQueries({ queryKey: getGetRequirementQueryKey(requirementId) });
           setLocation(`/requirements/${requirementId}`);
@@ -125,16 +142,62 @@ export default function NewBid() {
               )}
             </p>
           )}
+          {isTwoEnvelope && (
+            <div className="mt-2 p-2.5 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 text-xs text-violet-700 dark:text-violet-400">
+              <FileText className="h-3.5 w-3.5 inline mr-1.5" />
+              <strong>Two-Envelope RFP:</strong> Submit your technical portfolio (Envelope A) first. Your price is hidden until the buyer approves your technical bid.
+            </div>
+          )}
         </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+
+            {/* Two-Envelope: Technical bid (Envelope A) */}
+            {isTwoEnvelope && (
+              <Card className="border-violet-200 dark:border-violet-800">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2 text-violet-700 dark:text-violet-400">
+                    <FileText className="h-4 w-4" />
+                    Envelope A — Technical Portfolio
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Share your portfolio, compliance credentials, and past work. The buyer reviews this before seeing your price.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <FormField control={form.control} name="envelopeAUrl" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Portfolio / Technical Document URL</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            className="pl-8"
+                            placeholder="https://drive.google.com/your-portfolio or website"
+                            data-testid="input-envelope-a-url"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormDescription className="text-[10px]">
+                        Share a Google Drive link, website, or portfolio URL.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-sm">Your Offer</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <FormField control={form.control} name="bidAmount" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bid Amount (₹)</FormLabel>
+                    <FormLabel>
+                      {isTwoEnvelope ? "Bid Amount (₹) — hidden until technical approved" : "Bid Amount (₹)"}
+                    </FormLabel>
                     <FormControl>
                       <div className="relative">
                         <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -184,6 +247,57 @@ export default function NewBid() {
                     <FormMessage />
                   </FormItem>
                 )} />
+
+                {/* Backhaul / Empty Slot */}
+                <FormField control={form.control} name="isBackhaul" render={({ field }) => (
+                  <FormItem className="flex items-center justify-between p-3 rounded-xl border border-teal-200 bg-teal-50 dark:border-teal-800 dark:bg-teal-950/20">
+                    <div>
+                      <FormLabel className="flex items-center gap-1.5 text-teal-700 dark:text-teal-400 cursor-pointer">
+                        <Truck className="h-4 w-4" />
+                        Cancellation / Empty Slot
+                      </FormLabel>
+                      <FormDescription className="text-[10px] mt-0.5 text-teal-600 dark:text-teal-500">
+                        Got a freed-up slot or return trip? Mark this for a discount badge.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-backhaul"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )} />
+                {isBackhaul && (
+                  <Badge className="bg-teal-500 text-white text-xs">Cancellation Rate — Save up to 40%</Badge>
+                )}
+
+                {/* Crew size for agency providers */}
+                {isAgencyProvider && (
+                  <FormField control={form.control} name="crewSizeOffered" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5" />
+                        Crew Size Offered
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          placeholder="e.g. 5"
+                          data-testid="input-crew-size"
+                          value={field.value ?? ""}
+                          onChange={(e) => field.onChange(Number(e.target.value) || undefined)}
+                        />
+                      </FormControl>
+                      <FormDescription className="text-[10px]">
+                        How many workers will you deploy for this job?
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
               </CardContent>
             </Card>
 
@@ -318,7 +432,7 @@ export default function NewBid() {
 
             <Button type="submit" size="lg" className="w-full font-semibold" disabled={createBidMutation.isPending} data-testid="button-submit">
               {createBidMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Place Bid {bidAmount > 0 && `— ₹${Number(bidAmount).toLocaleString("en-IN")}`}
+              {isTwoEnvelope ? "Submit Technical Bid" : `Place Bid ${bidAmount > 0 ? `— ₹${Number(bidAmount).toLocaleString("en-IN")}` : ""}`}
             </Button>
           </form>
         </Form>

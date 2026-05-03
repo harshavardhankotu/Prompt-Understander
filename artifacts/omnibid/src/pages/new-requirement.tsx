@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { getCategoryIcon } from "@/lib/category-icons";
-import { IndianRupee, Loader2, PlusCircle, Clock, RefreshCw } from "lucide-react";
+import { IndianRupee, Loader2, PlusCircle, Clock, RefreshCw, Users, MessageSquare, Zap } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import type { Category } from "@workspace/api-client-react";
 
@@ -38,6 +38,9 @@ const schema = z.object({
   customData: z.record(z.string()).optional(),
   isRecurring: z.boolean(),
   recurringInterval: z.string().optional(),
+  isMegaProject: z.boolean(),
+  isSyndicate: z.boolean(),
+  jugaadMode: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -73,12 +76,18 @@ export default function NewRequirement() {
       customData: {},
       isRecurring: false,
       recurringInterval: "",
+      isMegaProject: false,
+      isSyndicate: false,
+      jugaadMode: false,
     },
   });
 
   const selectedCategoryId = form.watch("categoryId");
   const maxBudget = form.watch("maxBudget");
   const isRecurring = form.watch("isRecurring");
+  const isMegaProject = form.watch("isMegaProject");
+  const isSyndicate = form.watch("isSyndicate");
+  const jugaadMode = form.watch("jugaadMode");
   const selectedCategory = categories?.find((c: Category) => c.id === selectedCategoryId);
 
   const onSubmit = (data: FormData) => {
@@ -95,6 +104,9 @@ export default function NewRequirement() {
           customData: data.customData,
           isRecurring: data.isRecurring,
           recurringInterval: data.recurringInterval || undefined,
+          isMegaProject: data.isMegaProject,
+          isSyndicate: data.isSyndicate,
+          jugaadMode: data.jugaadMode,
         },
       },
       {
@@ -335,6 +347,79 @@ export default function NewRequirement() {
                       </div>
                     </FormItem>
                   )} />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Advanced Toggles — Mega Project, Syndicate, Jugaad */}
+            <Card>
+              <CardContent className="p-4 space-y-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Special Modes</p>
+
+                <FormField control={form.control} name="isMegaProject" render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div>
+                      <FormLabel className="flex items-center gap-1.5 cursor-pointer">
+                        <Zap className="h-4 w-4 text-purple-600" />
+                        Mega Project
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Split into sub-tasks. Providers bid on individual tasks.
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-mega-project" />
+                    </FormControl>
+                  </FormItem>
+                )} />
+                {isMegaProject && (
+                  <div className="ml-6 p-2.5 rounded-lg bg-purple-50 dark:bg-purple-950/20 text-xs text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
+                    After posting, you can add sub-tasks (Catering, Flowers, DJ, etc.) with individual budgets. Providers bid on each task separately.
+                  </div>
+                )}
+
+                <FormField control={form.control} name="isSyndicate" render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div>
+                      <FormLabel className="flex items-center gap-1.5 cursor-pointer">
+                        <Users className="h-4 w-4 text-teal-600" />
+                        Society Syndicate (Group Buy)
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Pool your requirement with neighbours. Providers see "Bulk Deal" and bid lower.
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-syndicate" />
+                    </FormControl>
+                  </FormItem>
+                )} />
+                {isSyndicate && (
+                  <div className="ml-6 p-2.5 rounded-lg bg-teal-50 dark:bg-teal-950/20 text-xs text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
+                    A shareable link will be generated after posting. Anyone joining the syndicate strengthens the group's bargaining power.
+                  </div>
+                )}
+
+                <FormField control={form.control} name="jugaadMode" render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div>
+                      <FormLabel className="flex items-center gap-1.5 cursor-pointer">
+                        <MessageSquare className="h-4 w-4 text-orange-500" />
+                        Jugaad Mode
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Don't know the category? Just describe your problem in plain language.
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-jugaad" />
+                    </FormControl>
+                  </FormItem>
+                )} />
+                {jugaadMode && (
+                  <div className="ml-6 p-2.5 rounded-lg bg-orange-50 dark:bg-orange-950/20 text-xs text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                    Your post will be shown with a "Jugaad" badge. Providers from all categories can suggest solutions.
+                  </div>
                 )}
               </CardContent>
             </Card>

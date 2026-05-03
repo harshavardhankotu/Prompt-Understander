@@ -18,6 +18,7 @@ import type {
 
 import type {
   AcceptBidBody,
+  ApproveMilestoneBody,
   AuthResponse,
   Bid,
   BidWithRequirement,
@@ -26,16 +27,20 @@ import type {
   ComplianceVault,
   CreateBidBody,
   CreateDisputeBody,
+  CreatePaymentBody,
   CreateRequirementBody,
   CreateReviewBody,
   Dispute,
+  GetNegotiationParams,
   HealthStatus,
   ListBidsParams,
   ListRequirementsParams,
   LoginBody,
   MarkReadBody,
   MessageResponse,
+  Negotiation,
   Notification,
+  PaymentWithProofs,
   ProviderDashboard,
   ProviderSubscription,
   RegisterBody,
@@ -45,12 +50,16 @@ import type {
   RequirementStats,
   ResolveDisputeBody,
   RespondDisputeBody,
+  RespondOfferBody,
   Review,
+  SendNegotiationMessageBody,
+  SubmitWorkProofBody,
   UpdateComplianceBody,
   UpdateUserBody,
   UpgradeSubscriptionBody,
   User,
   UserProfile,
+  WorkProof,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -2787,6 +2796,730 @@ export const useUpdateMyCompliance = <
   TContext
 > => {
   return useMutation(getUpdateMyComplianceMutationOptions(options));
+};
+
+/**
+ * @summary Get or create negotiation thread
+ */
+export const getGetNegotiationUrl = (
+  requirementId: string,
+  params?: GetNegotiationParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/requirements/${requirementId}/negotiations?${stringifiedParams}`
+    : `/api/requirements/${requirementId}/negotiations`;
+};
+
+export const getNegotiation = async (
+  requirementId: string,
+  params?: GetNegotiationParams,
+  options?: RequestInit,
+): Promise<Negotiation> => {
+  return customFetch<Negotiation>(getGetNegotiationUrl(requirementId, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetNegotiationQueryKey = (
+  requirementId: string,
+  params?: GetNegotiationParams,
+) => {
+  return [
+    `/api/requirements/${requirementId}/negotiations`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetNegotiationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNegotiation>>,
+  TError = ErrorType<unknown>,
+>(
+  requirementId: string,
+  params?: GetNegotiationParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getNegotiation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetNegotiationQueryKey(requirementId, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNegotiation>>> = ({
+    signal,
+  }) => getNegotiation(requirementId, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!requirementId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getNegotiation>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetNegotiationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNegotiation>>
+>;
+export type GetNegotiationQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get or create negotiation thread
+ */
+
+export function useGetNegotiation<
+  TData = Awaited<ReturnType<typeof getNegotiation>>,
+  TError = ErrorType<unknown>,
+>(
+  requirementId: string,
+  params?: GetNegotiationParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getNegotiation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetNegotiationQueryOptions(
+    requirementId,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Send a message or counter-offer in negotiation room
+ */
+export const getSendNegotiationMessageUrl = (requirementId: string) => {
+  return `/api/requirements/${requirementId}/negotiations/message`;
+};
+
+export const sendNegotiationMessage = async (
+  requirementId: string,
+  sendNegotiationMessageBody: SendNegotiationMessageBody,
+  options?: RequestInit,
+): Promise<Negotiation> => {
+  return customFetch<Negotiation>(getSendNegotiationMessageUrl(requirementId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(sendNegotiationMessageBody),
+  });
+};
+
+export const getSendNegotiationMessageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendNegotiationMessage>>,
+    TError,
+    { requirementId: string; data: BodyType<SendNegotiationMessageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendNegotiationMessage>>,
+  TError,
+  { requirementId: string; data: BodyType<SendNegotiationMessageBody> },
+  TContext
+> => {
+  const mutationKey = ["sendNegotiationMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendNegotiationMessage>>,
+    { requirementId: string; data: BodyType<SendNegotiationMessageBody> }
+  > = (props) => {
+    const { requirementId, data } = props ?? {};
+
+    return sendNegotiationMessage(requirementId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendNegotiationMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendNegotiationMessage>>
+>;
+export type SendNegotiationMessageMutationBody =
+  BodyType<SendNegotiationMessageBody>;
+export type SendNegotiationMessageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Send a message or counter-offer in negotiation room
+ */
+export const useSendNegotiationMessage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendNegotiationMessage>>,
+    TError,
+    { requirementId: string; data: BodyType<SendNegotiationMessageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendNegotiationMessage>>,
+  TError,
+  { requirementId: string; data: BodyType<SendNegotiationMessageBody> },
+  TContext
+> => {
+  return useMutation(getSendNegotiationMessageMutationOptions(options));
+};
+
+/**
+ * @summary Provider accepts or declines a counter-offer
+ */
+export const getRespondToCounterOfferUrl = (requirementId: string) => {
+  return `/api/requirements/${requirementId}/negotiations/respond`;
+};
+
+export const respondToCounterOffer = async (
+  requirementId: string,
+  respondOfferBody: RespondOfferBody,
+  options?: RequestInit,
+): Promise<Negotiation> => {
+  return customFetch<Negotiation>(getRespondToCounterOfferUrl(requirementId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(respondOfferBody),
+  });
+};
+
+export const getRespondToCounterOfferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof respondToCounterOffer>>,
+    TError,
+    { requirementId: string; data: BodyType<RespondOfferBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof respondToCounterOffer>>,
+  TError,
+  { requirementId: string; data: BodyType<RespondOfferBody> },
+  TContext
+> => {
+  const mutationKey = ["respondToCounterOffer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof respondToCounterOffer>>,
+    { requirementId: string; data: BodyType<RespondOfferBody> }
+  > = (props) => {
+    const { requirementId, data } = props ?? {};
+
+    return respondToCounterOffer(requirementId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RespondToCounterOfferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof respondToCounterOffer>>
+>;
+export type RespondToCounterOfferMutationBody = BodyType<RespondOfferBody>;
+export type RespondToCounterOfferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Provider accepts or declines a counter-offer
+ */
+export const useRespondToCounterOffer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof respondToCounterOffer>>,
+    TError,
+    { requirementId: string; data: BodyType<RespondOfferBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof respondToCounterOffer>>,
+  TError,
+  { requirementId: string; data: BodyType<RespondOfferBody> },
+  TContext
+> => {
+  return useMutation(getRespondToCounterOfferMutationOptions(options));
+};
+
+/**
+ * @summary Get payment and work proofs for a requirement
+ */
+export const getGetPaymentUrl = (requirementId: string) => {
+  return `/api/requirements/${requirementId}/payment`;
+};
+
+export const getPayment = async (
+  requirementId: string,
+  options?: RequestInit,
+): Promise<PaymentWithProofs> => {
+  return customFetch<PaymentWithProofs>(getGetPaymentUrl(requirementId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPaymentQueryKey = (requirementId: string) => {
+  return [`/api/requirements/${requirementId}/payment`] as const;
+};
+
+export const getGetPaymentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPayment>>,
+  TError = ErrorType<unknown>,
+>(
+  requirementId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPayment>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPaymentQueryKey(requirementId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayment>>> = ({
+    signal,
+  }) => getPayment(requirementId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!requirementId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPayment>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPaymentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPayment>>
+>;
+export type GetPaymentQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get payment and work proofs for a requirement
+ */
+
+export function useGetPayment<
+  TData = Awaited<ReturnType<typeof getPayment>>,
+  TError = ErrorType<unknown>,
+>(
+  requirementId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPayment>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPaymentQueryOptions(requirementId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Initiate UPI escrow payment (mock)
+ */
+export const getCreatePaymentUrl = (requirementId: string) => {
+  return `/api/requirements/${requirementId}/payment`;
+};
+
+export const createPayment = async (
+  requirementId: string,
+  createPaymentBody: CreatePaymentBody,
+  options?: RequestInit,
+): Promise<PaymentWithProofs> => {
+  return customFetch<PaymentWithProofs>(getCreatePaymentUrl(requirementId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createPaymentBody),
+  });
+};
+
+export const getCreatePaymentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPayment>>,
+    TError,
+    { requirementId: string; data: BodyType<CreatePaymentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPayment>>,
+  TError,
+  { requirementId: string; data: BodyType<CreatePaymentBody> },
+  TContext
+> => {
+  const mutationKey = ["createPayment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPayment>>,
+    { requirementId: string; data: BodyType<CreatePaymentBody> }
+  > = (props) => {
+    const { requirementId, data } = props ?? {};
+
+    return createPayment(requirementId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreatePaymentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPayment>>
+>;
+export type CreatePaymentMutationBody = BodyType<CreatePaymentBody>;
+export type CreatePaymentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Initiate UPI escrow payment (mock)
+ */
+export const useCreatePayment = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPayment>>,
+    TError,
+    { requirementId: string; data: BodyType<CreatePaymentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createPayment>>,
+  TError,
+  { requirementId: string; data: BodyType<CreatePaymentBody> },
+  TContext
+> => {
+  return useMutation(getCreatePaymentMutationOptions(options));
+};
+
+/**
+ * @summary Provider submits milestone work proof
+ */
+export const getSubmitWorkProofUrl = (requirementId: string) => {
+  return `/api/requirements/${requirementId}/payment/submit-proof`;
+};
+
+export const submitWorkProof = async (
+  requirementId: string,
+  submitWorkProofBody: SubmitWorkProofBody,
+  options?: RequestInit,
+): Promise<WorkProof> => {
+  return customFetch<WorkProof>(getSubmitWorkProofUrl(requirementId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(submitWorkProofBody),
+  });
+};
+
+export const getSubmitWorkProofMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitWorkProof>>,
+    TError,
+    { requirementId: string; data: BodyType<SubmitWorkProofBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitWorkProof>>,
+  TError,
+  { requirementId: string; data: BodyType<SubmitWorkProofBody> },
+  TContext
+> => {
+  const mutationKey = ["submitWorkProof"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitWorkProof>>,
+    { requirementId: string; data: BodyType<SubmitWorkProofBody> }
+  > = (props) => {
+    const { requirementId, data } = props ?? {};
+
+    return submitWorkProof(requirementId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitWorkProofMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitWorkProof>>
+>;
+export type SubmitWorkProofMutationBody = BodyType<SubmitWorkProofBody>;
+export type SubmitWorkProofMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Provider submits milestone work proof
+ */
+export const useSubmitWorkProof = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitWorkProof>>,
+    TError,
+    { requirementId: string; data: BodyType<SubmitWorkProofBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitWorkProof>>,
+  TError,
+  { requirementId: string; data: BodyType<SubmitWorkProofBody> },
+  TContext
+> => {
+  return useMutation(getSubmitWorkProofMutationOptions(options));
+};
+
+/**
+ * @summary Buyer approves a milestone and releases escrow portion
+ */
+export const getApproveMilestoneUrl = (requirementId: string) => {
+  return `/api/requirements/${requirementId}/payment/approve-milestone`;
+};
+
+export const approveMilestone = async (
+  requirementId: string,
+  approveMilestoneBody: ApproveMilestoneBody,
+  options?: RequestInit,
+): Promise<WorkProof> => {
+  return customFetch<WorkProof>(getApproveMilestoneUrl(requirementId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(approveMilestoneBody),
+  });
+};
+
+export const getApproveMilestoneMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveMilestone>>,
+    TError,
+    { requirementId: string; data: BodyType<ApproveMilestoneBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveMilestone>>,
+  TError,
+  { requirementId: string; data: BodyType<ApproveMilestoneBody> },
+  TContext
+> => {
+  const mutationKey = ["approveMilestone"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveMilestone>>,
+    { requirementId: string; data: BodyType<ApproveMilestoneBody> }
+  > = (props) => {
+    const { requirementId, data } = props ?? {};
+
+    return approveMilestone(requirementId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveMilestoneMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveMilestone>>
+>;
+export type ApproveMilestoneMutationBody = BodyType<ApproveMilestoneBody>;
+export type ApproveMilestoneMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Buyer approves a milestone and releases escrow portion
+ */
+export const useApproveMilestone = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveMilestone>>,
+    TError,
+    { requirementId: string; data: BodyType<ApproveMilestoneBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveMilestone>>,
+  TError,
+  { requirementId: string; data: BodyType<ApproveMilestoneBody> },
+  TContext
+> => {
+  return useMutation(getApproveMilestoneMutationOptions(options));
+};
+
+/**
+ * @summary Buyer approves technical bid (Envelope A), reveals financial amount
+ */
+export const getApproveEnvelopeAUrl = (id: string) => {
+  return `/api/bids/${id}/approve-envelope-a`;
+};
+
+export const approveEnvelopeA = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Bid> => {
+  return customFetch<Bid>(getApproveEnvelopeAUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getApproveEnvelopeAMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveEnvelopeA>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveEnvelopeA>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["approveEnvelopeA"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveEnvelopeA>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return approveEnvelopeA(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveEnvelopeAMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveEnvelopeA>>
+>;
+
+export type ApproveEnvelopeAMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Buyer approves technical bid (Envelope A), reveals financial amount
+ */
+export const useApproveEnvelopeA = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveEnvelopeA>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveEnvelopeA>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getApproveEnvelopeAMutationOptions(options));
 };
 
 /**
