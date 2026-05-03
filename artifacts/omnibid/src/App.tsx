@@ -25,6 +25,10 @@ import Analytics from "@/pages/analytics";
 import Referral from "@/pages/referral";
 import Admin from "@/pages/admin";
 import QA from "@/pages/qa";
+import Finance from "@/pages/finance";
+import MarketIntelligence from "@/pages/market-intelligence";
+import Tracking from "@/pages/tracking";
+import AdvancedAuction from "@/pages/advanced-auction";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +61,11 @@ function Router() {
       <Route path="/referral" component={Referral} />
       <Route path="/admin" component={Admin} />
       <Route path="/qa" component={QA} />
+      <Route path="/finance" component={Finance} />
+      <Route path="/market" component={MarketIntelligence} />
+      <Route path="/tracking/:requirementId" component={Tracking} />
+      <Route path="/tracking" component={Tracking} />
+      <Route path="/auction/:requirementId" component={AdvancedAuction} />
       <Route component={NotFound} />
     </Switch>
   );

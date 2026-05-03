@@ -24,33 +24,45 @@ A full-stack real-time reverse auction marketplace where buyers post problems an
 
 | Role | Type | Description |
 |------|------|-------------|
-| `retail_buyer` | B2C | Posts standard jobs, pays via UPI/Card |
-| `enterprise_buyer` | B2B | Posts RFPs, gets TDS invoices, manages Approved Vendor Lists |
-| `solo_provider` | Worker | Bids on jobs individually, KYC (Aadhaar/PAN) required |
-| `agency_provider` | Agency | Manages team roster, bids on large contracts, GST mandatory |
+| `retail_buyer` | B2C | Posts standard jobs, pays via UPI/Card/WhatsApp Pay |
+| `enterprise_buyer` | B2B | Posts RFPs, limited/sealed/multi-round auctions, multi-lot management |
+| `solo_provider` | Worker | Bids on jobs individually, KYC required, embedded finance |
+| `agency_provider` | Agency | Manages team roster, bids on large contracts, fleet GPS tracking |
 
 Legacy roles (`buyer`, `provider`, `both`) preserved for backward compatibility.
 
 ## Database Schema
 
+### Core Tables
 | Table | Purpose |
 |-------|---------|
-| `users` | All 4 roles + legacy roles; `user_role` enum has 7 values; `referralCode`, `referredBy` |
+| `users` | All 4 roles; `fraudScore`, `creditScore`, `loanEligible`, `latitude`, `longitude`, `serviceRadiusKm`, `referralCode` |
 | `categories` | 20 sectors with JSONB `custom_fields` + `priceFloor` |
-| `requirements` | `bidType` (standard/two_envelope), `isMegaProject`, `isSyndicate`, `jugaadMode`, `isRecurring`, `depositAmount` |
-| `bids` | `envelopeAUrl`, `crewSizeOffered`, `isBackhaul`, `bidSource`, `executorType`, `subcontractorName`, `isHighlighted` |
-| `negotiations` | Bhaav-Taav negotiation thread; JSONB `messages`, `counterOfferAmount`, `counterOfferStatus` |
-| `payments` | UPI escrow mock; `escrowStatus`, `platformFeePercent`, `tdsAmount`, `mobilizationAdvancePct`, `milestonesCompleted` |
+| `requirements` | `auctionType`, `vendorQualificationRequired`, `isMultiLot`, `lotCount`, `maxRounds`, `currentRound`, `rankingMode` |
+| `bids` | `roundNumber`, `lotId`, `fraudScore`, `rankingScore` |
+| `negotiations` | Bhaav-Taav negotiation thread |
+| `payments` | UPI escrow; `paymentMethod`, `whatsappPayStatus`, `upiOneWorldUsed`, `loanLinkedAmount` |
 | `work_proofs` | Milestone proof submission + buyer approval |
 | `reviews` | Star ratings post-completion |
 | `provider_subscriptions` | Plan management (free/starter/pro) |
 | `notifications` | In-app notification system |
-| `disputes` | Dispute resolution between buyers and providers |
+| `disputes` | Dispute resolution |
 | `compliance_vault` | KYC/GST/PAN/Insurance per user |
+
+### Phase 9 Tables (New)
+| Table | Purpose |
+|-------|---------|
 | `user_settings` | JSONB per-user settings (role-aware sections) |
-| `analytics_events` | Platform event tracking table |
+| `analytics_events` | Platform event tracking |
 | `referrals` | Referral engine — code, status, reward tracking |
 | `rate_cards` | Enterprise rate/ceiling management per category |
+| `loan_offers` | Embedded finance micro-lending — working capital, mobilization advance |
+| `fraud_events` | Fraud detection flags — severity, status, review |
+| `requirement_lots` | Multi-lot management — lot-wise city, budget, status |
+| `auction_configs` | Advanced auction settings — limited/sealed/multi_round/multi_lot |
+| `gps_tracking` | Real-time GPS events — status, ETA, speed, privacy controls |
+| `sustainability_records` | Carbon footprint, fuel savings, route efficiency |
+| `vendor_rankings` | AI-computed vendor ranking scores per requirement |
 
 ## Backend Routes (`/api/*`)
 
@@ -67,43 +79,64 @@ Legacy roles (`buyer`, `provider`, `both`) preserved for backward compatibility.
 - `POST /bids/:id/withdraw`, `GET /bids/my`
 
 ### Negotiation & Payment
-- `GET /negotiations/:requirementId/:providerId`, `POST /negotiations/:requirementId/:providerId`
-- `GET /payments/:requirementId`, `POST /payments/:requirementId`
-- `POST /payments/:requirementId/milestones/:n/complete`, `POST /payments/:requirementId/release`
-- `POST /work-proofs/:requirementId/:milestoneNumber`, `POST /work-proofs/:requirementId/:milestoneNumber/approve`
+- `GET|POST /negotiations/:requirementId/:providerId`
+- `GET|POST /payments/:requirementId`
+- `POST /payments/:requirementId/milestones/:n/complete`
+- `POST /work-proofs/:requirementId/:milestoneNumber/approve`
 
-### Settings (NEW)
-- `GET /settings/my` — Role-aware JSONB settings
-- `PUT /settings/my` — Update settings (deep merge)
+### Settings
+- `GET /settings/my`, `PUT /settings/my`
 
-### Analytics (NEW)
-- `POST /analytics/events` — Track platform event (public)
-- `GET /analytics/dashboard` — Role-specific stats (buyer or provider)
-- `GET /analytics/funnel` — Platform conversion funnel (auth)
-- `GET /analytics/admin` — Full platform analytics (admin only)
+### Analytics
+- `POST /analytics/events`, `GET /analytics/dashboard`
+- `GET /analytics/funnel`, `GET /analytics/admin`
 
-### Referrals (NEW)
-- `GET /referrals/my` — Code, link, stats, history
-- `POST /referrals/invite` — Send email invite, create referral record
+### Referrals
+- `GET /referrals/my`, `POST /referrals/invite`
 
-### Enterprise Rate Cards (NEW)
-- `GET /enterprise/rate-cards`, `POST /enterprise/rate-cards`
-- `PUT /enterprise/rate-cards/:id`, `DELETE /enterprise/rate-cards/:id`
+### Enterprise Rate Cards
+- `GET|POST /enterprise/rate-cards`
+- `PUT|DELETE /enterprise/rate-cards/:id`
 
-### Admin (NEW)
-- `GET /admin/stats` — Platform-wide GMV, users, disputes
-- `GET /admin/categories` — All categories with requirement/bid counts
-- `PUT /admin/categories/:id/floor` — Update price floor
-- `GET /admin/users?page=N` — Paginated user list
-- `PUT /admin/users/:id` — Update trust score, verification, OmniScore
+### Admin
+- `GET /admin/stats`, `GET /admin/categories`
+- `PUT /admin/categories/:id/floor`
+- `GET /admin/users`, `PUT /admin/users/:id`
 
-### Other
-- `GET /compliance/my`, `PUT /compliance/my`
-- `GET /disputes`, `POST /disputes`, `POST /disputes/:id/respond`, `POST /disputes/:id/resolve`
-- `GET /dashboard/buyer`, `GET /dashboard/provider`
-- `GET /notifications`, `POST /notifications/mark-read`
-- `GET /subscriptions/my`, `POST /subscriptions/upgrade`
-- `GET /users/:id`, `PATCH /users/:id/update`, `GET /users/:id/reviews`
+### Finance (NEW — Phase 9)
+- `GET /finance/eligibility` — OmniCredit score + loan eligibility
+- `GET /finance/loan-offers` — list loan offers
+- `POST /finance/loan-offers/request` — request a working capital loan
+- `POST /finance/loan-offers/:id/accept` — accept loan (disburse)
+- `POST /finance/loan-offers/:id/decline`
+- `GET /finance/whatsapp-pay/eligibility` — WhatsApp Pay eligibility check
+- `GET /finance/upi-one-world/eligibility` — UPI One World eligibility
+
+### Fraud Detection (NEW — Phase 9)
+- `GET /fraud/score` — compute own fraud score from rule engine
+- `GET /fraud/rules` — list all fraud detection rules and effects
+- `GET /fraud/events` — admin: list fraud events
+- `POST /fraud/events` — admin: manually flag a user
+- `PUT /fraud/events/:id/review` — admin: clear or confirm fraud event
+
+### Market Intelligence (NEW — Phase 9)
+- `GET /market/intelligence` — competitor intel (provider: bid windows, saturation; buyer: supplier depth)
+- `GET /market/vendor-ranking/:requirementId` — AI vendor ranking with mode selection
+- `GET /market/post-auction/:requirementId` — post-auction analysis (buyer + provider views)
+- `GET /market/sustainability/:requirementId` — sustainability record for a requirement
+
+### Advanced Auctions (NEW — Phase 9)
+- `GET|POST /auctions/:requirementId/config` — auction type, rounds, qualification, ranking mode
+- `POST /auctions/:requirementId/advance-round` — advance multi-round (shortlist + reject others)
+- `POST /auctions/:requirementId/reveal` — reveal sealed bids
+- `GET /auctions/:requirementId/lots` — list lots
+- `POST /auctions/:requirementId/lots` — create/replace lots (enterprise only)
+
+### GPS Tracking (NEW — Phase 9)
+- `POST /tracking/gps` — provider posts location update
+- `GET /tracking/gps/:requirementId` — get live tracking feed (+ SLA status for enterprise)
+- `POST /tracking/gps/stop` — stop location sharing
+- `POST /tracking/sustainability` — compute carbon footprint from coordinates (Haversine)
 
 ## Frontend Pages
 
@@ -128,21 +161,81 @@ Legacy roles (`buyer`, `provider`, `both`) preserved for backward compatibility.
 | `/referral` | Refer & Earn — share link, email invite, stats |
 | `/admin` | Admin control panel — categories, users, stats |
 | `/qa` | QA & Demo page — accounts, journeys, role matrix, test scenarios |
+| `/finance` | Embedded Finance — OmniCredit score, loan offers, WhatsApp Pay, UPI One World |
+| `/market` | Market Intelligence — competitor data, bid windows, saturation, post-auction analysis |
+| `/tracking/:requirementId` | GPS Tracking — live feed, SLA dashboard, sustainability |
+| `/auction/:requirementId` | Advanced Auction Config — limited/sealed/multi-round/multi-lot + AI vendor ranking |
+
+## Phase 9 Feature Access Matrix
+
+| Feature | retail_buyer | enterprise_buyer | solo_provider | agency_provider |
+|---------|:---:|:---:|:---:|:---:|
+| WhatsApp Pay | ✅ | Optional | — | — |
+| UPI One World | ✅ (travel/events) | ✅ | — | — |
+| Embedded Finance Loans | — | — | ✅ | ✅ |
+| Fraud Score | — | — | ✅ | ✅ |
+| Limited Reverse Auction | Premium only | ✅ Core | If qualified | If qualified |
+| Sealed Bid Auction | ✅ | ✅ | ✅ | ✅ |
+| Multi-Round Bidding | Limited | ✅ Core | — | ✅ |
+| Multi-Lot Management | — | ✅ Core | Single lot only | ✅ |
+| Competitor Intelligence | — | ✅ | ✅ | ✅ |
+| Post-Auction Analysis | ✅ | ✅ | ✅ (own bids) | ✅ |
+| AI Vendor Ranking | ✅ (simplified) | ✅ (full modes) | Visible | Visible |
+| GPS Tracking | View ETA | SLA Dashboard | Share location | Fleet tracking |
+| Sustainability | Simple message | Full export | Efficiency score | Efficiency score |
+
+## Fraud Detection Rule Engine
+
+7 rules computed in real-time:
+1. Abnormal bid velocity (>5 bids/hour) → medium
+2. High withdrawal rate (>60%) → medium
+3. Suspicious payout routing (>8 payouts/day) → high
+4. New account + aggressive bidding (<2 days + >3 bids/hour) → high
+5. Collusive bidding (same device) → critical
+6. Duplicate accounts → critical
+7. Location mismatch (>500km) → low
+
+Effects: `payout_hold`, `manual_review`, `ranking_suppression`, `account_suspension`
+
+## OmniCredit Score Model
+
+Score range: 300–900, based on:
+- OmniScore contribution (max +100)
+- Completed payments × 15 (max +150)
+- Completion rate × 100
+- Withdrawal rate penalty
+- Dispute rate penalty (−150)
+- Verified identity +30, Aadhaar +20
+
+Minimum to unlock loans: 550. Max loan: 40% of avg earnings, capped ₹50,000.
+
+## AI Vendor Ranking Modes
+
+4 modes selectable by enterprise buyers:
+- **Balanced** — equal weight across price, compliance, trust, rating, completion, disputes
+- **Lowest Cost** — 55% price weight
+- **Best Compliance** — 40% compliance weight (GST/PAN/KYC/empanelment)
+- **Fastest Start** — 25% completion history weight
+
+Retail buyer sees simplified labels: Best Price · Trusted Choice · Fastest Available · Nearby Best Match
+
+## GPS & Sustainability
+
+- Haversine formula for distance calculation
+- Carbon: 0.21 kg CO₂/km (standard vehicle)
+- Labels: eco_winner (<5km) · local_match (<15km) · regional (<40km) · national
+- Privacy: location auto-stops on job completion
 
 ## Demo Accounts
 
-All have seeded requirements, bids, and compliance records.
+| Role | Email | Password | Notes |
+|------|-------|----------|-------|
+| Retail Buyer (admin) | buyer@demo.omnibid.in | Demo@123 | trustScore=100, admin access |
+| Enterprise Buyer | enterprise@demo.omnibid.in | Demo@123 | 2 requirements, sealed auction config |
+| Solo Provider | provider@demo.omnibid.in | Demo@123 | OmniScore 380 |
+| Agency Provider | agency@demo.omnibid.in | Demo@123 | Crew of 12, OmniScore 620 |
 
-| Role | Email | Password |
-|------|-------|----------|
-| Retail Buyer (admin) | buyer@demo.omnibid.in | Demo@123 |
-| Enterprise Buyer | enterprise@demo.omnibid.in | Demo@123 |
-| Solo Provider | provider@demo.omnibid.in | Demo@123 |
-| Agency Provider | agency@demo.omnibid.in | Demo@123 |
-
-Admin access: `buyer@demo.omnibid.in` has `trustScore = 100`.
-
-## Admin Access Check
+## Admin Access
 
 ```ts
 user.trustScore >= 100 || user.email.endsWith("@omnibid.admin")
@@ -159,7 +252,7 @@ user.trustScore >= 100 || user.email.endsWith("@omnibid.admin")
 # Codegen (OpenAPI → React hooks + Zod)
 pnpm --filter @workspace/api-spec run codegen
 
-# DB push
+# DB push (apply schema changes)
 pnpm --filter @workspace/db run push
 
 # Seed categories (20 sectors)
@@ -171,30 +264,3 @@ pnpm --filter @workspace/db run seed-demo
 # Full typecheck
 pnpm run typecheck
 ```
-
-## 20 Sectors (Dynamic Form Engine)
-
-All sectors use `<RequirementForm />` which reads `custom_fields` JSONB from DB.
-
-| Sector | Slug | Price Floor |
-|--------|------|-------------|
-| Healthcare | healthcare | ₹500 |
-| Logistics | logistics | ₹200 |
-| Legal & Gov | legal | ₹1,000 |
-| Tech & IT | tech | ₹500 |
-| Home Services | home | ₹200 |
-| Agriculture | agriculture | ₹300 |
-| Education | education | ₹200 |
-| Construction & Civil | construction | ₹2,000 |
-| Event Management | events | ₹5,000 |
-| Manufacturing | manufacturing | ₹1,000 |
-| Creative & Media | creative | ₹500 |
-| Consulting & Finance | consulting | ₹1,000 |
-| Auto Fleet Repair | auto-fleet | ₹300 |
-| Real Estate Services | real-estate | ₹1,000 |
-| Retail Merchandising | retail | ₹500 |
-| Hospitality & Catering | hospitality | ₹1,000 |
-| Security Services | security | ₹500 |
-| Beauty & Wellness | beauty | ₹300 |
-| Export / Customs | customs | ₹2,000 |
-| Heavy Machinery | heavy-machinery | ₹3,000 |

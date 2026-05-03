@@ -6,6 +6,7 @@ import {
   boolean,
   timestamp,
   pgEnum,
+  decimal,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -39,6 +40,14 @@ export const usersTable = pgTable("users", {
   benchAvailableFrom: text("bench_available_from"),
   omniScore: integer("omni_score").notNull().default(0),
   preferredLanguage: text("preferred_language").notNull().default("en"),
+  fraudScore: integer("fraud_score").notNull().default(0),
+  creditScore: integer("credit_score").notNull().default(500),
+  loanEligible: boolean("loan_eligible").notNull().default(false),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  serviceRadiusKm: integer("service_radius_km").default(50),
+  referralCode: text("referral_code"),
+  referredBy: uuid("referred_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

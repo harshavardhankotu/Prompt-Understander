@@ -48,6 +48,10 @@ export const bidsTable = pgTable("bids", {
   bidSource: text("bid_source").notNull().default("web"),
   status: bidStatusEnum("status").notNull().default("active"),
   isHighlighted: boolean("is_highlighted").notNull().default(false),
+  roundNumber: integer("round_number").notNull().default(1),
+  lotId: uuid("lot_id"),
+  fraudScore: integer("fraud_score").notNull().default(0),
+  rankingScore: decimal("ranking_score", { precision: 6, scale: 2 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

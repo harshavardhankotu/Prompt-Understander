@@ -18,6 +18,11 @@ import analyticsRouter from "./analytics";
 import referralsRouter from "./referrals";
 import enterpriseRouter from "./enterprise";
 import adminRouter from "./admin";
+import financeRouter from "./finance";
+import fraudRouter from "./fraud";
+import marketRouter from "./market";
+import auctionRouter from "./auction";
+import trackingRouter from "./tracking";
 
 const router: IRouter = Router();
 
@@ -40,5 +45,10 @@ router.use(analyticsRouter);
 router.use(referralsRouter);
 router.use(enterpriseRouter);
 router.use(adminRouter);
+router.use(financeRouter);
+router.use(fraudRouter);
+router.use(marketRouter);
+router.use(auctionRouter);
+router.use(trackingRouter);
 
 export default router;

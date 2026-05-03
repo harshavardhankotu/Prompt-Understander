@@ -58,6 +58,13 @@ export const requirementsTable = pgTable("requirements", {
   recurringInterval: text("recurring_interval"),
   depositAmount: decimal("deposit_amount", { precision: 12, scale: 2 }),
   depositPaid: boolean("deposit_paid").notNull().default(false),
+  auctionType: text("auction_type").notNull().default("standard"),
+  vendorQualificationRequired: boolean("vendor_qualification_required").notNull().default(false),
+  isMultiLot: boolean("is_multi_lot").notNull().default(false),
+  lotCount: integer("lot_count").notNull().default(1),
+  maxRounds: integer("max_rounds").notNull().default(1),
+  currentRound: integer("current_round").notNull().default(1),
+  rankingMode: text("ranking_mode").notNull().default("balanced"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

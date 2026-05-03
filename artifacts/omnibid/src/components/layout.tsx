@@ -25,6 +25,9 @@ import {
   Shield,
   User,
   CreditCard,
+  IndianRupee,
+  TrendingUp,
+  MapPin,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -81,6 +84,11 @@ export default function Layout({ children }: LayoutProps) {
                 {user && (
                   <Link href="/analytics" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     Analytics
+                  </Link>
+                )}
+                {user && (
+                  <Link href="/market" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    Market
                   </Link>
                 )}
               </nav>
@@ -150,6 +158,18 @@ export default function Layout({ children }: LayoutProps) {
                       <DropdownMenuItem onClick={() => setLocation("/referral")} data-testid="menu-referral">
                         <Gift className="h-4 w-4 mr-2" />
                         Refer &amp; Earn
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/finance")} data-testid="menu-finance">
+                        <IndianRupee className="h-4 w-4 mr-2" />
+                        Finance &amp; Loans
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/market")} data-testid="menu-market">
+                        <TrendingUp className="h-4 w-4 mr-2" />
+                        Market Intelligence
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/tracking")} data-testid="menu-tracking">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        GPS Tracking
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setLocation("/settings")} data-testid="menu-settings">
                         <Settings className="h-4 w-4 mr-2" />

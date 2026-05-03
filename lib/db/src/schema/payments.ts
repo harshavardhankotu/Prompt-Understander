@@ -46,6 +46,10 @@ export const paymentsTable = pgTable("payments", {
   upiTransactionId: text("upi_transaction_id"),
   milestonesCompleted: integer("milestones_completed").notNull().default(0),
   totalMilestones: integer("total_milestones").notNull().default(1),
+  paymentMethod: text("payment_method").notNull().default("upi"),
+  whatsappPayStatus: text("whatsapp_pay_status"),
+  upiOneWorldUsed: boolean("upi_one_world_used").notNull().default(false),
+  loanLinkedAmount: decimal("loan_linked_amount", { precision: 12, scale: 2 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
