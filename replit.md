@@ -15,27 +15,12 @@ A full-stack real-time reverse auction marketplace where buyers post problems an
 
 ## Tech Stack
 
-- **Frontend**: React 18, Vite, Wouter (routing), TanStack React Query, React Hook Form, Zod, Tailwind CSS, shadcn/ui
-- **Backend**: Express 5, Pino logger, bcryptjs, jsonwebtoken, zod
+- **Frontend**: React 18, Vite, Wouter (routing), TanStack React Query, React Hook Form, Zod, Tailwind CSS, shadcn/ui, Recharts
+- **Backend**: Express 5, Pino logger, bcrypt, jsonwebtoken, zod
 - **Database**: PostgreSQL via Drizzle ORM
 - **Auth**: JWT stored in `localStorage` as `omnibid_token`, passed via `Authorization: Bearer <token>` header
 
-## Key Features (Steps 1–10 Complete)
-
-| Feature | Description |
-|---------|-------------|
-| **Live Bid Feed** | Real-time polling on requirement detail; Bid War badge (≥5 bids) with flame animation |
-| **Two-Envelope RFP** | Auto-set for enterprise_buyer + ≥₹1L budgets; Envelope A (technical) reviewed before financial reveal |
-| **Bhaav-Taav Room** | `/negotiate/:requirementId/:providerId` — chat with counter-offer; provider accept/decline; 15-min FOMO |
-| **UPI Escrow** | `/payment/:requirementId` — mock UPI QR + TxnID; mobilization advance; milestone-based release; TDS @2% for >₹30K |
-| **Work Proof Milestones** | Provider submits milestone proof; buyer approves to release escrow; completion marks requirement done |
-| **Anti-Ghost Contractor** | Executor declaration (Self / Partial) required on all bids |
-| **Backhaul / Empty Slot** | Toggle on bid form for cancellation/empty-slot rates |
-| **Mega Project Toggle** | Requirement flag for sub-task bidding |
-| **Syndicate (Group Buy)** | Requirement flag for neighbourhood pooling |
-| **Jugaad Mode** | Post without knowing the category — cross-sector bidding |
-
-## 4-Role Architecture (Limber UK Model)
+## 4-Role Architecture
 
 | Role | Type | Description |
 |------|------|-------------|
@@ -44,28 +29,152 @@ A full-stack real-time reverse auction marketplace where buyers post problems an
 | `solo_provider` | Worker | Bids on jobs individually, KYC (Aadhaar/PAN) required |
 | `agency_provider` | Agency | Manages team roster, bids on large contracts, GST mandatory |
 
-Legacy roles (`buyer`, `provider`, `both`) are preserved for backward compatibility.
+Legacy roles (`buyer`, `provider`, `both`) preserved for backward compatibility.
 
 ## Database Schema
 
 | Table | Purpose |
 |-------|---------|
-| `users` | All 4 roles + legacy roles; `user_role` enum has 7 values |
+| `users` | All 4 roles + legacy roles; `user_role` enum has 7 values; `referralCode`, `referredBy` |
 | `categories` | 20 sectors with JSONB `custom_fields` + `priceFloor` |
 | `requirements` | `bidType` (standard/two_envelope), `isMegaProject`, `isSyndicate`, `jugaadMode`, `isRecurring`, `depositAmount` |
 | `bids` | `envelopeAUrl`, `crewSizeOffered`, `isBackhaul`, `bidSource`, `executorType`, `subcontractorName`, `isHighlighted` |
 | `negotiations` | Bhaav-Taav negotiation thread; JSONB `messages`, `counterOfferAmount`, `counterOfferStatus` |
 | `payments` | UPI escrow mock; `escrowStatus`, `platformFeePercent`, `tdsAmount`, `mobilizationAdvancePct`, `milestonesCompleted` |
-| `work_proofs` | Milestone proof submission + buyer approval; `milestoneNumber`, `milestoneTitle`, `notes`, `buyerApproved` |
+| `work_proofs` | Milestone proof submission + buyer approval |
 | `reviews` | Star ratings post-completion |
-| `provider_subscriptions` | Plan management (free/starter/pro) — auto-created for provider roles |
+| `provider_subscriptions` | Plan management (free/starter/pro) |
 | `notifications` | In-app notification system |
 | `disputes` | Dispute resolution between buyers and providers |
-| `compliance_vault` | KYC/GST/PAN/Insurance per user; `aadhaarStatus`, `panNumber`, `gstNumber`, `mcaRegistration`, `insuranceUploadUrl`, `isEmpanelled` |
+| `compliance_vault` | KYC/GST/PAN/Insurance per user |
+| `user_settings` | JSONB per-user settings (role-aware sections) |
+| `analytics_events` | Platform event tracking table |
+| `referrals` | Referral engine — code, status, reward tracking |
+| `rate_cards` | Enterprise rate/ceiling management per category |
+
+## Backend Routes (`/api/*`)
+
+### Auth
+- `POST /auth/register` / `POST /auth/login` / `GET /auth/me`
+
+### Categories & Requirements
+- `GET /categories`, `GET /requirements`, `POST /requirements`
+- `GET /requirements/my`, `GET /requirements/:id`, `POST /requirements/:id/accept-bid`
+- `POST /requirements/:id/cancel`, `POST /requirements/:id/repost`
+
+### Bids
+- `POST /requirements/:requirementId/bids`, `GET /requirements/:requirementId/bids`
+- `POST /bids/:id/withdraw`, `GET /bids/my`
+
+### Negotiation & Payment
+- `GET /negotiations/:requirementId/:providerId`, `POST /negotiations/:requirementId/:providerId`
+- `GET /payments/:requirementId`, `POST /payments/:requirementId`
+- `POST /payments/:requirementId/milestones/:n/complete`, `POST /payments/:requirementId/release`
+- `POST /work-proofs/:requirementId/:milestoneNumber`, `POST /work-proofs/:requirementId/:milestoneNumber/approve`
+
+### Settings (NEW)
+- `GET /settings/my` — Role-aware JSONB settings
+- `PUT /settings/my` — Update settings (deep merge)
+
+### Analytics (NEW)
+- `POST /analytics/events` — Track platform event (public)
+- `GET /analytics/dashboard` — Role-specific stats (buyer or provider)
+- `GET /analytics/funnel` — Platform conversion funnel (auth)
+- `GET /analytics/admin` — Full platform analytics (admin only)
+
+### Referrals (NEW)
+- `GET /referrals/my` — Code, link, stats, history
+- `POST /referrals/invite` — Send email invite, create referral record
+
+### Enterprise Rate Cards (NEW)
+- `GET /enterprise/rate-cards`, `POST /enterprise/rate-cards`
+- `PUT /enterprise/rate-cards/:id`, `DELETE /enterprise/rate-cards/:id`
+
+### Admin (NEW)
+- `GET /admin/stats` — Platform-wide GMV, users, disputes
+- `GET /admin/categories` — All categories with requirement/bid counts
+- `PUT /admin/categories/:id/floor` — Update price floor
+- `GET /admin/users?page=N` — Paginated user list
+- `PUT /admin/users/:id` — Update trust score, verification, OmniScore
+
+### Other
+- `GET /compliance/my`, `PUT /compliance/my`
+- `GET /disputes`, `POST /disputes`, `POST /disputes/:id/respond`, `POST /disputes/:id/resolve`
+- `GET /dashboard/buyer`, `GET /dashboard/provider`
+- `GET /notifications`, `POST /notifications/mark-read`
+- `GET /subscriptions/my`, `POST /subscriptions/upgrade`
+- `GET /users/:id`, `PATCH /users/:id/update`, `GET /users/:id/reviews`
+
+## Frontend Pages
+
+| Route | Description |
+|-------|-------------|
+| `/` | Home — hero, category browser |
+| `/login` / `/register` | Auth (4-role picker) |
+| `/requirements` | Browse 20 sectors |
+| `/requirements/new` | Dynamic JSONB form |
+| `/requirements/:id` | Detail with bids, accept, negotiate, dispute |
+| `/bid/new/:requirementId` | Place bid + executor declaration |
+| `/dashboard/buyer` / `/dashboard/provider` | Role dashboards |
+| `/profile/:id` | Provider profile + OmniScore |
+| `/notifications` | In-app notification feed |
+| `/subscriptions` | Plan management |
+| `/disputes` | Raise and resolve disputes |
+| `/compliance` | Compliance Vault (KYC, GST, PAN) |
+| `/negotiate/:reqId/:providerId` | Bhaav-Taav negotiation room |
+| `/payment/:requirementId` | UPI escrow + milestone releases |
+| `/settings` | Role-aware settings (4 roles × unique sections) |
+| `/analytics` | Recharts dashboards — Buyer / Provider / Admin views |
+| `/referral` | Refer & Earn — share link, email invite, stats |
+| `/admin` | Admin control panel — categories, users, stats |
+| `/qa` | QA & Demo page — accounts, journeys, role matrix, test scenarios |
+
+## Demo Accounts
+
+All have seeded requirements, bids, and compliance records.
+
+| Role | Email | Password |
+|------|-------|----------|
+| Retail Buyer (admin) | buyer@demo.omnibid.in | Demo@123 |
+| Enterprise Buyer | enterprise@demo.omnibid.in | Demo@123 |
+| Solo Provider | provider@demo.omnibid.in | Demo@123 |
+| Agency Provider | agency@demo.omnibid.in | Demo@123 |
+
+Admin access: `buyer@demo.omnibid.in` has `trustScore = 100`.
+
+## Admin Access Check
+
+```ts
+user.trustScore >= 100 || user.email.endsWith("@omnibid.admin")
+```
+
+## Environment Variables
+
+- `DATABASE_URL` — PostgreSQL connection string (auto-provisioned by Replit)
+- `SESSION_SECRET` — JWT signing secret (set in Replit secrets)
+
+## Key Commands
+
+```bash
+# Codegen (OpenAPI → React hooks + Zod)
+pnpm --filter @workspace/api-spec run codegen
+
+# DB push
+pnpm --filter @workspace/db run push
+
+# Seed categories (20 sectors)
+pnpm --filter @workspace/db run seed
+
+# Seed demo users + requirements + bids
+pnpm --filter @workspace/db run seed-demo
+
+# Full typecheck
+pnpm run typecheck
+```
 
 ## 20 Sectors (Dynamic Form Engine)
 
-All sectors use the shared `<RequirementForm />` which reads `custom_fields` JSONB from the DB and renders inputs dynamically. No hardcoded sector-specific components.
+All sectors use `<RequirementForm />` which reads `custom_fields` JSONB from DB.
 
 | Sector | Slug | Price Floor |
 |--------|------|-------------|
@@ -89,93 +198,3 @@ All sectors use the shared `<RequirementForm />` which reads `custom_fields` JSO
 | Beauty & Wellness | beauty | ₹300 |
 | Export / Customs | customs | ₹2,000 |
 | Heavy Machinery | heavy-machinery | ₹3,000 |
-
-## Features
-
-### Core
-- Reverse auction bidding (price goes down)
-- 20 service sectors with JSONB-driven dynamic form fields
-- Provider subscription tiers (Free / Starter / Pro)
-- JWT authentication, buyer and provider dashboards
-- Live notifications system
-
-### Strategic Features (v2)
-1. **Dispute Resolution** — Raise, respond, resolve disputes. `/disputes` page.
-2. **Anti-Ghost-Contractor Declaration** — Executor declaration on every bid (self/partial).
-3. **Price Floors per Category** — Per-sector minimum bid; warning shown in bid form.
-4. **New Provider Boost** — Auto-highlight bids from providers with < 10 total bids.
-5. **Recurring Requirements** — Toggle + interval picker; one-click repost.
-6. **Buyer Deposit Tracking** — 10% deposit shown for requirements > ₹10,000.
-
-### Enterprise Features (v3 — Steps 1–5)
-1. **4-Role Architecture** — Retail Buyer, Enterprise Buyer, Solo Provider, Agency Provider.
-2. **Compliance Vault** — GST/PAN/Aadhaar/MCA/Insurance per user. GST mandatory for enterprise/agency roles. Accessible at `/compliance`.
-3. **20-Sector Dynamic Engine** — One universal form, sectors defined in DB as JSONB.
-
-### Pending (awaiting confirmation)
-- **Two-Envelope Bidding** — Technical bid + financial bid for requirements > ₹1L.
-
-## Routes (Backend — `/api/*`)
-
-### Auth
-- `POST /auth/register` — Register; accepts all 4 new + 3 legacy roles
-- `POST /auth/login` — Login, returns JWT token
-- `GET /auth/me` — Get current user
-
-### Categories & Requirements
-- `GET /categories` — List all 20 categories
-- `GET /requirements` — List open requirements
-- `POST /requirements` — Create requirement; supports `isRecurring`, `recurringInterval`
-- `GET /requirements/my` / `GET /requirements/:id` / `POST /requirements/:id/accept-bid`
-- `POST /requirements/:id/cancel` / `POST /requirements/:id/repost`
-
-### Bids
-- `POST /requirements/:requirementId/bids` — Place bid; requires `executorType`
-- `GET /requirements/:requirementId/bids` / `POST /bids/:id/withdraw` / `GET /bids/my`
-
-### Compliance
-- `GET /compliance/my` — Get current user's compliance vault
-- `PUT /compliance/my` — Upsert compliance vault (validates GST for enterprise/agency)
-
-### Disputes
-- `GET /disputes` / `POST /disputes` / `POST /disputes/:id/respond` / `POST /disputes/:id/resolve`
-
-### Other
-- `GET /dashboard/buyer` / `GET /dashboard/provider`
-- `GET /notifications` / `POST /notifications/mark-read`
-- `GET /subscriptions/my` / `POST /subscriptions/upgrade`
-- `GET /users/:id` / `PATCH /users/:id/update` / `GET /users/:id/reviews`
-
-## Frontend Pages
-
-- `/` — Home
-- `/login` / `/register` — Auth (4-role picker)
-- `/requirements` — Browse 20 sectors
-- `/requirements/new` — Dynamic form (sector → JSONB fields render automatically)
-- `/requirements/:id` — Detail with bids, accept, repost, dispute
-- `/bid/new/:requirementId` — Place bid with executor declaration
-- `/dashboard/buyer` / `/dashboard/provider`
-- `/profile/:id` / `/notifications` / `/subscriptions`
-- `/disputes` — Raise and resolve disputes
-- `/compliance` — Compliance Vault (KYC, GST, PAN, Insurance)
-
-## Environment Variables
-
-- `DATABASE_URL` — PostgreSQL connection string (auto-provisioned by Replit)
-- `SESSION_SECRET` — JWT signing secret (set in Replit secrets)
-
-## Codegen
-
-```bash
-pnpm --filter @workspace/api-spec run codegen
-```
-
-## DB Operations
-
-```bash
-# Push schema changes to DB
-pnpm --filter @workspace/db run push
-
-# Seed categories (all 20 sectors)
-pnpm --filter @workspace/db exec tsx src/seed.ts
-```

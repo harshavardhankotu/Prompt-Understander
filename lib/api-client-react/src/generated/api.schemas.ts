@@ -604,6 +604,164 @@ export interface UpdateComplianceBody {
   aadhaarStatus?: UpdateComplianceBodyAadhaarStatus;
 }
 
+export interface OkResponse {
+  ok: boolean;
+}
+
+export type SettingsResponseSettings = { [key: string]: unknown };
+
+export interface SettingsResponse {
+  settings: SettingsResponseSettings;
+  role: string;
+  updatedAt: string;
+}
+
+export type TrackEventBodyEventData = { [key: string]: unknown };
+
+export interface TrackEventBody {
+  eventName: string;
+  eventData?: TrackEventBodyEventData;
+  sessionId?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  referralCode?: string | null;
+  city?: string | null;
+  category?: string | null;
+}
+
+export type AnalyticsDashboardSummary = { [key: string]: unknown };
+
+export type AnalyticsDashboardRecentRequirementsItem = {
+  [key: string]: unknown;
+};
+
+export type AnalyticsDashboardRecentBidsItem = { [key: string]: unknown };
+
+export type AnalyticsDashboardCategoryBreakdownItem = {
+  [key: string]: unknown;
+};
+
+export interface AnalyticsDashboard {
+  role: string;
+  summary: AnalyticsDashboardSummary;
+  recentRequirements?: AnalyticsDashboardRecentRequirementsItem[];
+  recentBids?: AnalyticsDashboardRecentBidsItem[];
+  categoryBreakdown?: AnalyticsDashboardCategoryBreakdownItem[];
+  omniScore?: number | null;
+  trustScore?: number | null;
+}
+
+export interface FunnelStage {
+  stage: string;
+  count: number;
+}
+
+export interface AdminAnalytics {
+  [key: string]: unknown;
+}
+
+export type ReferralStatus =
+  (typeof ReferralStatus)[keyof typeof ReferralStatus];
+
+export const ReferralStatus = {
+  pending: "pending",
+  clicked: "clicked",
+  signed_up: "signed_up",
+  converted: "converted",
+  rewarded: "rewarded",
+} as const;
+
+export interface Referral {
+  id: string;
+  refereeEmail?: string | null;
+  status: ReferralStatus;
+  rewardAmount: number;
+  createdAt: string;
+  convertedAt?: string | null;
+}
+
+export interface ReferralStats {
+  referralCode: string;
+  referralLink: string;
+  totalReferrals: number;
+  convertedReferrals: number;
+  totalRewardEarned: number;
+  pendingReward: number;
+  referrals: Referral[];
+}
+
+export interface RateCard {
+  id: string;
+  name: string;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  maxRatePerProject?: number | null;
+  maxRatePerHour?: number | null;
+  empanelledVendorIds: string[];
+  isActive: boolean;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface RateCardBody {
+  categoryId?: string | null;
+  name: string;
+  maxRatePerProject?: number | null;
+  maxRatePerHour?: number | null;
+  empanelledVendorIds?: string[];
+  notes?: string | null;
+}
+
+export type AdminStatsUsers = { [key: string]: unknown };
+
+export type AdminStatsRequirements = { [key: string]: unknown };
+
+export type AdminStatsBids = { [key: string]: unknown };
+
+export type AdminStatsPayments = { [key: string]: unknown };
+
+export type AdminStatsDisputes = { [key: string]: unknown };
+
+export type AdminStatsTopSectorsItem = { [key: string]: unknown };
+
+export type AdminStatsTopCitiesItem = { [key: string]: unknown };
+
+export interface AdminStats {
+  users: AdminStatsUsers;
+  requirements: AdminStatsRequirements;
+  bids: AdminStatsBids;
+  payments: AdminStatsPayments;
+  disputes: AdminStatsDisputes;
+  topSectors: AdminStatsTopSectorsItem[];
+  topCities: AdminStatsTopCitiesItem[];
+}
+
+export interface AdminCategory {
+  id: string;
+  name: string;
+  slug: string;
+  iconName: string;
+  priceFloor: number;
+  requirementCount: number;
+  bidCount: number;
+}
+
+export type AdminUsersPageUsersItem = { [key: string]: unknown };
+
+export interface AdminUsersPage {
+  users: AdminUsersPageUsersItem[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface AdminUserUpdate {
+  isVerified?: boolean | null;
+  trustScore?: number | null;
+  omniScore?: number | null;
+}
+
 export type ListRequirementsParams = {
   categoryId?: string;
   city?: string;
@@ -627,4 +785,26 @@ export const ListBidsSortBy = {
 
 export type GetNegotiationParams = {
   providerId?: string;
+};
+
+export type UpdateMySettingsBody = { [key: string]: unknown };
+
+export type InviteReferralBody = {
+  email: string;
+};
+
+export type UpdateCategoryFloorBody = {
+  floor: number;
+};
+
+export type ListAdminUsersParams = {
+  page?: number;
+};
+
+export type UpdateAdminUser200 = {
+  id: string;
+  name: string;
+  isVerified: boolean;
+  trustScore: number;
+  omniScore: number;
 };

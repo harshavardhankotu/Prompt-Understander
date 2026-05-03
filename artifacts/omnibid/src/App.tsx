@@ -20,6 +20,11 @@ import Disputes from "@/pages/disputes";
 import Compliance from "@/pages/compliance";
 import Negotiate from "@/pages/negotiate";
 import PaymentDetail from "@/pages/payment-detail";
+import Settings from "@/pages/settings";
+import Analytics from "@/pages/analytics";
+import Referral from "@/pages/referral";
+import Admin from "@/pages/admin";
+import QA from "@/pages/qa";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +52,11 @@ function Router() {
       <Route path="/negotiate/:requirementId/:providerId" component={Negotiate} />
       <Route path="/negotiate/:requirementId" component={Negotiate} />
       <Route path="/payment/:requirementId" component={PaymentDetail} />
+      <Route path="/settings" component={Settings} />
+      <Route path="/analytics" component={Analytics} />
+      <Route path="/referral" component={Referral} />
+      <Route path="/admin" component={Admin} />
+      <Route path="/qa" component={QA} />
       <Route component={NotFound} />
     </Switch>
   );

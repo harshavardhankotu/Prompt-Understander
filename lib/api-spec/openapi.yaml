@@ -857,6 +857,340 @@ paths:
               schema:
                 $ref: "#/components/schemas/RequirementStats"
 
+  # SETTINGS
+  /settings/my:
+    get:
+      operationId: getMySettings
+      tags: [settings]
+      summary: Get authenticated user settings
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: User settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsResponse"
+    put:
+      operationId: updateMySettings
+      tags: [settings]
+      summary: Update authenticated user settings
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsResponse"
+
+  # ANALYTICS
+  /analytics/events:
+    post:
+      operationId: trackEvent
+      tags: [analytics]
+      summary: Track an analytics event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackEventBody"
+      responses:
+        "201":
+          description: Event tracked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+
+  /analytics/dashboard:
+    get:
+      operationId: getAnalyticsDashboard
+      tags: [analytics]
+      summary: Get role-based analytics dashboard data
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsDashboard"
+
+  /analytics/admin:
+    get:
+      operationId: getAdminAnalytics
+      tags: [analytics]
+      summary: Get admin analytics (admin only)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Admin analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnalytics"
+
+  /analytics/funnel:
+    get:
+      operationId: getAnalyticsFunnel
+      tags: [analytics]
+      summary: Get platform conversion funnel
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Funnel data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FunnelStage"
+
+  # REFERRALS
+  /referrals/my:
+    get:
+      operationId: getMyReferrals
+      tags: [referrals]
+      summary: Get my referrals and stats
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Referral stats and list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralStats"
+
+  /referrals/invite:
+    post:
+      operationId: inviteReferral
+      tags: [referrals]
+      summary: Send a referral invite
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+              required: [email]
+      responses:
+        "201":
+          description: Referral created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Referral"
+
+  # ENTERPRISE
+  /enterprise/rate-cards:
+    get:
+      operationId: listRateCards
+      tags: [enterprise]
+      summary: List enterprise rate cards
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Rate cards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RateCard"
+    post:
+      operationId: createRateCard
+      tags: [enterprise]
+      summary: Create a rate card
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RateCardBody"
+      responses:
+        "201":
+          description: Created rate card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RateCard"
+
+  /enterprise/rate-cards/{id}:
+    put:
+      operationId: updateRateCard
+      tags: [enterprise]
+      summary: Update a rate card
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RateCardBody"
+      responses:
+        "200":
+          description: Updated rate card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RateCard"
+    delete:
+      operationId: deleteRateCard
+      tags: [enterprise]
+      summary: Delete a rate card
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+
+  # ADMIN
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get platform-wide admin stats
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Admin stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
+  /admin/categories:
+    get:
+      operationId: listAdminCategories
+      tags: [admin]
+      summary: List all categories with stats (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Categories with stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminCategory"
+
+  /admin/categories/{id}/floor:
+    put:
+      operationId: updateCategoryFloor
+      tags: [admin]
+      summary: Update a category price floor
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                floor:
+                  type: number
+              required: [floor]
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCategory"
+
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      summary: List all users (admin, paginated)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paginated users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUsersPage"
+
+  /admin/users/{id}:
+    put:
+      operationId: updateAdminUser
+      tags: [admin]
+      summary: Update user trust/verification (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  isVerified:
+                    type: boolean
+                  trustScore:
+                    type: number
+                  omniScore:
+                    type: number
+                required: [id, name, isVerified, trustScore, omniScore]
+
 components:
   schemas:
     HealthStatus:
@@ -1753,3 +2087,271 @@ components:
         aadhaarStatus:
           type: string
           enum: [pending, verified]
+
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required: [ok]
+
+    SettingsResponse:
+      type: object
+      properties:
+        settings:
+          type: object
+          additionalProperties: true
+        role:
+          type: string
+        updatedAt:
+          type: string
+      required: [settings, role, updatedAt]
+
+    TrackEventBody:
+      type: object
+      properties:
+        eventName:
+          type: string
+        eventData:
+          type: object
+          additionalProperties: true
+        sessionId:
+          type: string
+          nullable: true
+        utmSource:
+          type: string
+          nullable: true
+        utmMedium:
+          type: string
+          nullable: true
+        utmCampaign:
+          type: string
+          nullable: true
+        referralCode:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+      required: [eventName]
+
+    AnalyticsDashboard:
+      type: object
+      properties:
+        role:
+          type: string
+        summary:
+          type: object
+          additionalProperties: true
+        recentRequirements:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        recentBids:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        categoryBreakdown:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        omniScore:
+          type: number
+          nullable: true
+        trustScore:
+          type: number
+          nullable: true
+      required: [role, summary]
+
+    FunnelStage:
+      type: object
+      properties:
+        stage:
+          type: string
+        count:
+          type: number
+      required: [stage, count]
+
+    AdminAnalytics:
+      type: object
+      additionalProperties: true
+
+    ReferralStats:
+      type: object
+      properties:
+        referralCode:
+          type: string
+        referralLink:
+          type: string
+        totalReferrals:
+          type: number
+        convertedReferrals:
+          type: number
+        totalRewardEarned:
+          type: number
+        pendingReward:
+          type: number
+        referrals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Referral"
+      required: [referralCode, referralLink, totalReferrals, convertedReferrals, totalRewardEarned, pendingReward, referrals]
+
+    Referral:
+      type: object
+      properties:
+        id:
+          type: string
+        refereeEmail:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, clicked, signed_up, converted, rewarded]
+        rewardAmount:
+          type: number
+        createdAt:
+          type: string
+        convertedAt:
+          type: string
+          nullable: true
+      required: [id, status, rewardAmount, createdAt]
+
+    RateCard:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        categoryId:
+          type: string
+          nullable: true
+        categoryName:
+          type: string
+          nullable: true
+        maxRatePerProject:
+          type: number
+          nullable: true
+        maxRatePerHour:
+          type: number
+          nullable: true
+        empanelledVendorIds:
+          type: array
+          items:
+            type: string
+        isActive:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, name, isActive, empanelledVendorIds, createdAt]
+
+    RateCardBody:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          nullable: true
+        name:
+          type: string
+        maxRatePerProject:
+          type: number
+          nullable: true
+        maxRatePerHour:
+          type: number
+          nullable: true
+        empanelledVendorIds:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+          nullable: true
+      required: [name]
+
+    AdminStats:
+      type: object
+      properties:
+        users:
+          type: object
+          additionalProperties: true
+        requirements:
+          type: object
+          additionalProperties: true
+        bids:
+          type: object
+          additionalProperties: true
+        payments:
+          type: object
+          additionalProperties: true
+        disputes:
+          type: object
+          additionalProperties: true
+        topSectors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        topCities:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      required: [users, requirements, bids, payments, disputes, topSectors, topCities]
+
+    AdminCategory:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        iconName:
+          type: string
+        priceFloor:
+          type: number
+        requirementCount:
+          type: number
+        bidCount:
+          type: number
+      required: [id, name, slug, iconName, priceFloor, requirementCount, bidCount]
+
+    AdminUsersPage:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        total:
+          type: number
+        page:
+          type: number
+        pages:
+          type: number
+      required: [users, total, page, pages]
+
+    AdminUserUpdate:
+      type: object
+      properties:
+        isVerified:
+          type: boolean
+          nullable: true
+        trustScore:
+          type: number
+          nullable: true
+        omniScore:
+          type: number
+          nullable: true

@@ -1388,3 +1388,263 @@ export const GetRequirementStatsResponse = zod.object({
   avgBid: zod.number().nullish(),
   isBidWar: zod.boolean(),
 });
+
+/**
+ * @summary Get authenticated user settings
+ */
+export const GetMySettingsResponse = zod.object({
+  settings: zod.record(zod.string(), zod.unknown()),
+  role: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Update authenticated user settings
+ */
+export const UpdateMySettingsBody = zod.record(zod.string(), zod.unknown());
+
+export const UpdateMySettingsResponse = zod.object({
+  settings: zod.record(zod.string(), zod.unknown()),
+  role: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Track an analytics event
+ */
+export const TrackEventBody = zod.object({
+  eventName: zod.string(),
+  eventData: zod.record(zod.string(), zod.unknown()).optional(),
+  sessionId: zod.string().nullish(),
+  utmSource: zod.string().nullish(),
+  utmMedium: zod.string().nullish(),
+  utmCampaign: zod.string().nullish(),
+  referralCode: zod.string().nullish(),
+  city: zod.string().nullish(),
+  category: zod.string().nullish(),
+});
+
+/**
+ * @summary Get role-based analytics dashboard data
+ */
+export const GetAnalyticsDashboardResponse = zod.object({
+  role: zod.string(),
+  summary: zod.record(zod.string(), zod.unknown()),
+  recentRequirements: zod
+    .array(zod.record(zod.string(), zod.unknown()))
+    .optional(),
+  recentBids: zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  categoryBreakdown: zod
+    .array(zod.record(zod.string(), zod.unknown()))
+    .optional(),
+  omniScore: zod.number().nullish(),
+  trustScore: zod.number().nullish(),
+});
+
+/**
+ * @summary Get admin analytics (admin only)
+ */
+export const GetAdminAnalyticsResponse = zod.record(
+  zod.string(),
+  zod.unknown(),
+);
+
+/**
+ * @summary Get platform conversion funnel
+ */
+export const GetAnalyticsFunnelResponseItem = zod.object({
+  stage: zod.string(),
+  count: zod.number(),
+});
+export const GetAnalyticsFunnelResponse = zod.array(
+  GetAnalyticsFunnelResponseItem,
+);
+
+/**
+ * @summary Get my referrals and stats
+ */
+export const GetMyReferralsResponse = zod.object({
+  referralCode: zod.string(),
+  referralLink: zod.string(),
+  totalReferrals: zod.number(),
+  convertedReferrals: zod.number(),
+  totalRewardEarned: zod.number(),
+  pendingReward: zod.number(),
+  referrals: zod.array(
+    zod.object({
+      id: zod.string(),
+      refereeEmail: zod.string().nullish(),
+      status: zod.enum([
+        "pending",
+        "clicked",
+        "signed_up",
+        "converted",
+        "rewarded",
+      ]),
+      rewardAmount: zod.number(),
+      createdAt: zod.string(),
+      convertedAt: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Send a referral invite
+ */
+export const InviteReferralBody = zod.object({
+  email: zod.string(),
+});
+
+/**
+ * @summary List enterprise rate cards
+ */
+export const ListRateCardsResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  categoryId: zod.string().nullish(),
+  categoryName: zod.string().nullish(),
+  maxRatePerProject: zod.number().nullish(),
+  maxRatePerHour: zod.number().nullish(),
+  empanelledVendorIds: zod.array(zod.string()),
+  isActive: zod.boolean(),
+  notes: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+export const ListRateCardsResponse = zod.array(ListRateCardsResponseItem);
+
+/**
+ * @summary Create a rate card
+ */
+export const CreateRateCardBody = zod.object({
+  categoryId: zod.string().nullish(),
+  name: zod.string(),
+  maxRatePerProject: zod.number().nullish(),
+  maxRatePerHour: zod.number().nullish(),
+  empanelledVendorIds: zod.array(zod.string()).optional(),
+  notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Update a rate card
+ */
+export const UpdateRateCardParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateRateCardBody = zod.object({
+  categoryId: zod.string().nullish(),
+  name: zod.string(),
+  maxRatePerProject: zod.number().nullish(),
+  maxRatePerHour: zod.number().nullish(),
+  empanelledVendorIds: zod.array(zod.string()).optional(),
+  notes: zod.string().nullish(),
+});
+
+export const UpdateRateCardResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  categoryId: zod.string().nullish(),
+  categoryName: zod.string().nullish(),
+  maxRatePerProject: zod.number().nullish(),
+  maxRatePerHour: zod.number().nullish(),
+  empanelledVendorIds: zod.array(zod.string()),
+  isActive: zod.boolean(),
+  notes: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete a rate card
+ */
+export const DeleteRateCardParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeleteRateCardResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Get platform-wide admin stats
+ */
+export const GetAdminStatsResponse = zod.object({
+  users: zod.record(zod.string(), zod.unknown()),
+  requirements: zod.record(zod.string(), zod.unknown()),
+  bids: zod.record(zod.string(), zod.unknown()),
+  payments: zod.record(zod.string(), zod.unknown()),
+  disputes: zod.record(zod.string(), zod.unknown()),
+  topSectors: zod.array(zod.record(zod.string(), zod.unknown())),
+  topCities: zod.array(zod.record(zod.string(), zod.unknown())),
+});
+
+/**
+ * @summary List all categories with stats (admin)
+ */
+export const ListAdminCategoriesResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  slug: zod.string(),
+  iconName: zod.string(),
+  priceFloor: zod.number(),
+  requirementCount: zod.number(),
+  bidCount: zod.number(),
+});
+export const ListAdminCategoriesResponse = zod.array(
+  ListAdminCategoriesResponseItem,
+);
+
+/**
+ * @summary Update a category price floor
+ */
+export const UpdateCategoryFloorParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateCategoryFloorBody = zod.object({
+  floor: zod.number(),
+});
+
+export const UpdateCategoryFloorResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  slug: zod.string(),
+  iconName: zod.string(),
+  priceFloor: zod.number(),
+  requirementCount: zod.number(),
+  bidCount: zod.number(),
+});
+
+/**
+ * @summary List all users (admin, paginated)
+ */
+export const ListAdminUsersQueryParams = zod.object({
+  page: zod.coerce.number().optional(),
+});
+
+export const ListAdminUsersResponse = zod.object({
+  users: zod.array(zod.record(zod.string(), zod.unknown())),
+  total: zod.number(),
+  page: zod.number(),
+  pages: zod.number(),
+});
+
+/**
+ * @summary Update user trust/verification (admin)
+ */
+export const UpdateAdminUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateAdminUserBody = zod.object({
+  isVerified: zod.boolean().nullish(),
+  trustScore: zod.number().nullish(),
+  omniScore: zod.number().nullish(),
+});
+
+export const UpdateAdminUserResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  isVerified: zod.boolean(),
+  trustScore: zod.number(),
+  omniScore: zod.number(),
+});

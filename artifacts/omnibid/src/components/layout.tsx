@@ -12,12 +12,16 @@ import {
 import { useListNotifications } from "@workspace/api-client-react";
 import {
   Bell,
+  BarChart3,
   ChevronDown,
+  FlaskConical,
   Gavel,
+  Gift,
   LayoutDashboard,
   LogOut,
   PlusCircle,
   Scale,
+  Settings,
   Shield,
   User,
   CreditCard,
@@ -53,6 +57,8 @@ export default function Layout({ children }: LayoutProps) {
     user?.role === "retail_buyer" ||
     user?.role === "enterprise_buyer";
 
+  const isAdmin = (user?.trustScore ?? 0) >= 100 || user?.email?.endsWith?.("@omnibid.admin");
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -70,6 +76,11 @@ export default function Layout({ children }: LayoutProps) {
                 {isBuyer && (
                   <Link href="/requirements/new" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     Post Problem
+                  </Link>
+                )}
+                {user && (
+                  <Link href="/analytics" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    Analytics
                   </Link>
                 )}
               </nav>
@@ -115,7 +126,7 @@ export default function Layout({ children }: LayoutProps) {
                         <ChevronDown className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuContent align="end" className="w-56">
                       {isBuyer && (
                         <DropdownMenuItem onClick={() => setLocation("/dashboard/buyer")} data-testid="menu-buyer-dashboard">
                           <LayoutDashboard className="h-4 w-4 mr-2" />
@@ -132,6 +143,19 @@ export default function Layout({ children }: LayoutProps) {
                         <User className="h-4 w-4 mr-2" />
                         Profile
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/analytics")} data-testid="menu-analytics">
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        Analytics
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/referral")} data-testid="menu-referral">
+                        <Gift className="h-4 w-4 mr-2" />
+                        Refer &amp; Earn
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/settings")} data-testid="menu-settings">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Settings
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setLocation("/compliance")} data-testid="menu-compliance">
                         <Shield className="h-4 w-4 mr-2" />
                         Compliance Vault
@@ -145,6 +169,20 @@ export default function Layout({ children }: LayoutProps) {
                       <DropdownMenuItem onClick={() => setLocation("/disputes")} data-testid="menu-disputes">
                         <Scale className="h-4 w-4 mr-2" />
                         Disputes
+                      </DropdownMenuItem>
+                      {isAdmin && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
+                            <Shield className="h-4 w-4 mr-2 text-red-500" />
+                            <span className="text-red-600">Admin Panel</span>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setLocation("/qa")} data-testid="menu-qa">
+                        <FlaskConical className="h-4 w-4 mr-2 text-orange-500" />
+                        <span className="text-orange-600">QA / Demo</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout} className="text-destructive" data-testid="menu-logout">

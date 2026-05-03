@@ -10,3 +10,7 @@ export * from "./compliance_vault";
 export * from "./negotiations";
 export * from "./payments";
 export * from "./work_proofs";
+export * from "./user_settings";
+export * from "./analytics_events";
+export * from "./referrals";
+export * from "./rate_cards";

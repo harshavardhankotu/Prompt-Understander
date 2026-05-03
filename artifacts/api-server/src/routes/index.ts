@@ -13,6 +13,11 @@ import disputesRouter from "./disputes";
 import complianceRouter from "./compliance";
 import negotiationsRouter from "./negotiations";
 import paymentsRouter from "./payments";
+import settingsRouter from "./settings";
+import analyticsRouter from "./analytics";
+import referralsRouter from "./referrals";
+import enterpriseRouter from "./enterprise";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -30,5 +35,10 @@ router.use(disputesRouter);
 router.use(complianceRouter);
 router.use(negotiationsRouter);
 router.use(paymentsRouter);
+router.use(settingsRouter);
+router.use(analyticsRouter);
+router.use(referralsRouter);
+router.use(enterpriseRouter);
+router.use(adminRouter);
 
 export default router;
