@@ -3,14 +3,10 @@
   "compileOnSave": false,
   "files": [],
   "references": [
-    {
-      "path": "./lib/db"
-    },
-    {
-      "path": "./lib/api-client-react"
-    },
-    {
-      "path": "./lib/api-zod"
-    }
+    { "path": "./drizzle" },
+    { "path": "./shared/api-client-react" },
+    { "path": "./shared/api-zod" },
+    { "path": "./client" },
+    { "path": "./server" }
   ]
 }
