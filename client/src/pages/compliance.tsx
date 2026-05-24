@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/lib/auth";
+import { uploadFile } from "@/lib/storage";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,26 @@ export default function Compliance() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploading(true);
+      const url = await uploadFile(
+        "omnibid-vault",
+        `compliance/insurance-${user?.id}-${Date.now()}.${file.name.split(".").pop()}`,
+        file
+      );
+      form.setValue("insuranceUploadUrl", url);
+      toast({ title: "Upload successful!", description: "Insurance certificate uploaded successfully." });
+    } catch (err) {
+      toast({ title: "Upload failed", description: String(err), variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const isProviderRole = user?.role === "solo_provider" || user?.role === "agency_provider" || user?.role === "provider" || user?.role === "both";
   const isEnterpriseRole = user?.role === "enterprise_buyer" || user?.role === "agency_provider";
@@ -278,11 +299,32 @@ export default function Compliance() {
                   {isProviderRole && (
                     <FormField control={form.control} name="insuranceUploadUrl" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Insurance Certificate URL</FormLabel>
+                        <FormLabel>Insurance Certificate (KYC Document)</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://drive.google.com/…" {...field} data-testid="input-insurance" />
+                          <div className="space-y-2">
+                            <Input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              disabled={uploading}
+                              onChange={handleUpload}
+                              className="cursor-pointer"
+                            />
+                            {uploading && (
+                              <div className="flex items-center gap-2 text-xs text-blue-600">
+                                <Loader2 className="h-3 w-3 animate-spin" /> Uploading to secure Supabase vault…
+                              </div>
+                            )}
+                            {field.value && (
+                              <div className="text-xs text-green-600 font-medium flex items-center gap-1">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> File uploaded successfully!{" "}
+                                <a href={field.value} target="_blank" rel="noreferrer" className="text-primary underline font-normal ml-1">
+                                  View Document
+                                </a>
+                              </div>
+                            )}
+                          </div>
                         </FormControl>
-                        <p className="text-xs text-muted-foreground mt-1">Paste a public link to your professional liability / PI insurance document.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Upload your professional liability or PI insurance document (Image/PDF).</p>
                         <FormMessage />
                       </FormItem>
                     )} />

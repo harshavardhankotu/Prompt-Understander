@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { loginSchema, registerSchema } from "../../shared/src/schemas/auth";
+import { loginSchema, registerSchema } from "../../shared/core/src/schemas/auth";
 
 describe("Auth Validation Schemas", () => {
   describe("loginSchema", () => {

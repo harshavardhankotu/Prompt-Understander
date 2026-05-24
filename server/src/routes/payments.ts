@@ -4,8 +4,15 @@ import { db, paymentsTable, workProofsTable, requirementsTable, bidsTable } from
 import { requireAuth } from "../middlewares/auth";
 import { z } from "zod";
 import { recalculateOmniScore } from "../lib/credit";
+import Razorpay from "razorpay";
+import crypto from "crypto";
 
 const router: IRouter = Router();
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_mockkey",
+  key_secret: process.env.RAZORPAY_KEY_SECRET || "rzp_test_mocksecret",
+});
 
 const CreatePaymentBody = z.object({
   bidId: z.string().uuid(),
@@ -106,7 +113,46 @@ router.post("/requirements/:requirementId/payment", requireAuth, async (req, res
   if (requirement.buyerId !== req.user!.userId) { res.status(403).json({ error: "Forbidden" }); return; }
 
   const [existing] = await db.select().from(paymentsTable).where(eq(paymentsTable.requirementId, requirementId));
-  if (existing) { res.json({ payment: formatPayment(existing), workProofs: [] }); return; }
+  if (existing) {
+    if (existing.escrowStatus !== "pending") {
+      res.json({ payment: formatPayment(existing), workProofs: [] });
+      return;
+    }
+    // Re-generate order for pending payment
+    let order;
+    try {
+      const amountInPaise = Math.round((Number(existing.totalAmount) + Number(existing.platformFeeAmount)) * 100);
+      order = await razorpay.orders.create({
+        amount: amountInPaise,
+        currency: "INR",
+        receipt: `receipt_${requirementId.substring(0, 10)}_${Date.now().toString(36)}`,
+        notes: {
+          requirementId,
+          bidId: existing.bidId,
+          buyerId: req.user!.userId,
+        },
+      });
+      await db.update(paymentsTable)
+        .set({ upiTransactionId: order.id })
+        .where(eq(paymentsTable.id, existing.id));
+      existing.upiTransactionId = order.id;
+    } catch (err) {
+      order = {
+        id: existing.upiTransactionId || `order_${Date.now().toString(36)}`,
+        amount: Math.round((Number(existing.totalAmount) + Number(existing.platformFeeAmount)) * 100),
+        currency: "INR",
+      };
+    }
+    res.json({
+      payment: formatPayment(existing),
+      workProofs: [],
+      razorpayOrderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.RAZORPAY_KEY_ID || "rzp_test_mockkey",
+    });
+    return;
+  }
 
   const [bid] = await db.select().from(bidsTable).where(eq(bidsTable.id, parsed.data.bidId));
   if (!bid) { res.status(404).json({ error: "Bid not found" }); return; }
@@ -116,7 +162,26 @@ router.post("/requirements/:requirementId/payment", requireAuth, async (req, res
   const mobPct = parsed.data.mobilizationAdvancePct ?? 0;
   const totalMilestones = parsed.data.totalMilestones ?? 1;
 
-  const mockTxnId = `UPI${Date.now().toString(36).toUpperCase()}`;
+  let order;
+  try {
+    const amountInPaise = Math.round((totalAmount + platformFeeAmount) * 100);
+    order = await razorpay.orders.create({
+      amount: amountInPaise,
+      currency: "INR",
+      receipt: `receipt_${requirementId.substring(0, 10)}_${Date.now().toString(36)}`,
+      notes: {
+        requirementId,
+        bidId: parsed.data.bidId,
+        buyerId: req.user!.userId,
+      },
+    });
+  } catch (err) {
+    order = {
+      id: `order_${Date.now().toString(36)}`,
+      amount: Math.round((totalAmount + platformFeeAmount) * 100),
+      currency: "INR",
+    };
+  }
 
   const [payment] = await db.insert(paymentsTable).values({
     requirementId,
@@ -129,17 +194,87 @@ router.post("/requirements/:requirementId/payment", requireAuth, async (req, res
     tdsAmount: String(tdsAmount),
     netToProvider: String(netToProvider),
     mobilizationAdvancePct: mobPct,
-    advanceReleased: mobPct > 0,
-    escrowStatus: "held",
-    upiTransactionId: mockTxnId,
+    advanceReleased: false,
+    escrowStatus: "pending",
+    upiTransactionId: order.id,
     totalMilestones,
   }).returning();
 
-  await db.update(requirementsTable)
-    .set({ status: "in_progress" })
-    .where(eq(requirementsTable.id, requirementId));
+  res.status(201).json({
+    payment: formatPayment(payment),
+    workProofs: [],
+    razorpayOrderId: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    keyId: process.env.RAZORPAY_KEY_ID || "rzp_test_mockkey",
+  });
+});
 
-  res.status(201).json({ payment: formatPayment(payment), workProofs: [] });
+const VerifySignatureBody = z.object({
+  razorpay_order_id: z.string(),
+  razorpay_payment_id: z.string(),
+  razorpay_signature: z.string(),
+});
+
+router.post("/requirements/:requirementId/payment/verify-signature", requireAuth, async (req, res): Promise<void> => {
+  const requirementId = Array.isArray(req.params.requirementId)
+    ? req.params.requirementId[0]
+    : req.params.requirementId;
+
+  const parsed = VerifySignatureBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = parsed.data;
+
+  // Verify the signature
+  const keySecret = process.env.RAZORPAY_KEY_SECRET || "rzp_test_mocksecret";
+  const expectedSignature = crypto
+    .createHmac("sha256", keySecret)
+    .update(razorpay_order_id + "|" + razorpay_payment_id)
+    .digest("hex");
+
+  // In sandbox, we also allow standard verification bypass if keys are mock
+  const isMock = keySecret === "rzp_test_mocksecret";
+  const isSignatureValid = expectedSignature === razorpay_signature || (isMock && razorpay_signature === "mock_signature");
+
+  if (!isSignatureValid) {
+    res.status(400).json({ error: "Invalid payment signature verification failed." });
+    return;
+  }
+
+  // Find the pending payment record for this order
+  const [payment] = await db
+    .select()
+    .from(paymentsTable)
+    .where(eq(paymentsTable.upiTransactionId, razorpay_order_id));
+
+  if (!payment) {
+    res.status(404).json({ error: "Payment record for this order not found." });
+    return;
+  }
+
+  // Update payment status to 'held' and capture payment ID
+  const [updatedPayment] = await db
+    .update(paymentsTable)
+    .set({
+      escrowStatus: "held",
+      upiTransactionId: razorpay_payment_id,
+      advanceReleased: payment.mobilizationAdvancePct > 0,
+      updatedAt: new Date(),
+    })
+    .where(eq(paymentsTable.id, payment.id))
+    .returning();
+
+  // Update requirement status to 'in_progress'
+  await db
+    .update(requirementsTable)
+    .set({ status: "in_progress" })
+    .where(eq(requirementsTable.id, payment.requirementId));
+
+  res.json({
+    success: true,
+    payment: formatPayment(updatedPayment),
+  });
 });
 
 router.post("/requirements/:requirementId/payment/submit-proof", requireAuth, async (req, res): Promise<void> => {

@@ -22,9 +22,24 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { uploadFile } from "@/lib/storage";
 import {
-  ArrowLeft, CheckCircle2, Clock, IndianRupee, Lock, Receipt, Shield, Upload, XCircle,
+  ArrowLeft, CheckCircle2, Clock, IndianRupee, Lock, Receipt, Shield, Upload, XCircle, Loader2
 } from "lucide-react";
+
+function loadScript(src: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export default function PaymentDetail() {
   const { requirementId } = useParams<{ requirementId: string }>();
@@ -40,6 +55,27 @@ export default function PaymentDetail() {
   const [proofNotes, setProofNotes] = useState("");
   const [milestoneTitle, setMilestoneTitle] = useState("Work completion");
   const [milestoneNum, setMilestoneNum] = useState(1);
+  const [proofUrl, setProofUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const handleProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploading(true);
+      const url = await uploadFile(
+        "omnibid-vault",
+        `proofs/requirement-${requirementId}-${Date.now()}.${file.name.split(".").pop()}`,
+        file
+      );
+      setProofUrl(url);
+      toast({ title: "Proof uploaded!", description: "File successfully uploaded to secure storage." });
+    } catch (err) {
+      toast({ title: "Upload failed", description: String(err), variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const { data: req } = useGetRequirement(requirementId, {
     query: { queryKey: getGetRequirementQueryKey(requirementId), enabled: !!requirementId },
@@ -59,9 +95,25 @@ export default function PaymentDetail() {
   const isProvider = req?.winningBidId && !isBuyer;
 
   const winningBidId = req?.winningBidId;
+  const winningBid = req?.bids?.find((b: any) => b.id === winningBidId);
+  const bidAmount = winningBid ? Number(winningBid.bidAmount) : 0;
+  const platformFeeAmount = Math.round(bidAmount * 0.02);
+  const payTotal = bidAmount + platformFeeAmount;
 
-  const handlePay = () => {
+  const handlePay = async () => {
     if (!winningBidId) return;
+
+    // Load Razorpay Checkout SDK script dynamically
+    const scriptLoaded = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
+    if (!scriptLoaded) {
+      toast({
+        title: "Checkout failed",
+        description: "Failed to load Razorpay SDK. Please check your internet connection.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createPayment.mutate(
       {
         requirementId,
@@ -73,12 +125,70 @@ export default function PaymentDetail() {
         },
       },
       {
-        onSuccess: () => {
-          setShowPayDialog(false);
-          refetch();
-          toast({ title: "Payment initiated!", description: "Funds are held in escrow. Release on milestone approval." });
+        onSuccess: async (res: any) => {
+          const { razorpayOrderId, amount, currency, keyId } = res;
+
+          const options = {
+            key: keyId,
+            amount: amount,
+            currency: currency,
+            name: "OmniBid India Escrow",
+            description: `Payment for escrow: ${req?.title || "Bid Payment"}`,
+            order_id: razorpayOrderId,
+            handler: async function (response: any) {
+              try {
+                const token = localStorage.getItem("omnibid_token");
+                const verifyRes = await fetch(`/api/requirements/${requirementId}/payment/verify-signature`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature,
+                  }),
+                });
+
+                if (!verifyRes.ok) {
+                  throw new Error("Payment signature verification failed.");
+                }
+
+                setShowPayDialog(false);
+                refetch();
+                toast({
+                  title: "Payment secured in Escrow!",
+                  description: "Your funds have been verified and locked in the secure vault.",
+                });
+              } catch (err) {
+                toast({
+                  title: "Verification failed",
+                  description: "Could not verify Razorpay signature with backend.",
+                  variant: "destructive",
+                });
+              }
+            },
+            prefill: {
+              name: user?.name || "",
+              email: user?.email || "",
+            },
+            theme: {
+              color: "#0f766e",
+            },
+          };
+
+          const rzp = new (window as any).Razorpay(options);
+          rzp.on("payment.failed", function (response: any) {
+            toast({
+              title: "Payment failed",
+              description: response.error.description || "The checkout session was unsuccessful.",
+              variant: "destructive",
+            });
+          });
+          rzp.open();
         },
-        onError: () => toast({ title: "Payment failed", variant: "destructive" }),
+        onError: () => toast({ title: "Failed to initiate payment intent", variant: "destructive" }),
       }
     );
   };
@@ -88,12 +198,18 @@ export default function PaymentDetail() {
     submitProof.mutate(
       {
         requirementId,
-        data: { milestoneNumber: milestoneNum, milestoneTitle, notes: proofNotes },
+        data: {
+          milestoneNumber: milestoneNum,
+          milestoneTitle,
+          notes: proofNotes,
+          proofUrl: proofUrl || undefined,
+        },
       },
       {
         onSuccess: () => {
           setShowProofDialog(false);
           setProofNotes("");
+          setProofUrl("");
           qc.invalidateQueries({ queryKey: getGetPaymentQueryKey(requirementId) });
           toast({ title: "Work proof submitted!", description: "Waiting for buyer approval." });
         },
@@ -363,43 +479,67 @@ export default function PaymentDetail() {
 
       {/* Pay confirmation dialog */}
       <Dialog open={showPayDialog} onOpenChange={setShowPayDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <IndianRupee className="h-5 w-5 text-primary" />
-              Confirm UPI Escrow Payment
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-teal-800 dark:text-teal-300">
+              <Shield className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+              Secure Escrow Payment
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 text-sm">
-            <div className="p-3 rounded-xl bg-muted/60 space-y-2">
-              <div className="flex items-center justify-center gap-2 text-3xl font-bold py-2">
-                {/* Mock QR */}
-                <div className="w-24 h-24 bg-muted border-2 border-dashed border-border rounded-lg flex items-center justify-center text-xs text-muted-foreground text-center p-2">
-                  Scan QR<br/>to Pay
-                </div>
-              </div>
-              <p className="text-center text-muted-foreground text-xs">or pay to UPI ID: <span className="font-mono font-medium">omnibid@icici</span></p>
+          <div className="space-y-4 my-2">
+            <div className="p-3.5 rounded-xl bg-teal-50/50 dark:bg-teal-950/10 border border-teal-100 dark:border-teal-900/50 text-xs text-teal-800 dark:text-teal-300 flex items-start gap-2.5">
+              <Lock className="h-4 w-4 mt-0.5 flex-shrink-0 text-teal-600 dark:text-teal-400" />
+              <p>
+                Funds are held in a secure trust account and released in parts only as you approve provider work milestones.
+              </p>
             </div>
-            <div className="space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span>Amount held in escrow</span>
-                <span className="font-semibold">₹{req && req.winningBidId ? "—" : "—"}</span>
+
+            <div className="rounded-xl border border-border p-4 space-y-3 bg-muted/20">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Provider Bid Amount</span>
+                <span className="font-medium flex items-center gap-0.5">
+                  <IndianRupee className="h-3.5 w-3.5" />
+                  {bidAmount.toLocaleString("en-IN")}
+                </span>
               </div>
-              <div className="flex justify-between text-green-600">
-                <span>This is a mock payment</span>
-                <span>✓ Simulated</span>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Platform Fee (2%)</span>
+                <span className="font-medium flex items-center gap-0.5 text-teal-600 dark:text-teal-400">
+                  <IndianRupee className="h-3.5 w-3.5" />
+                  {platformFeeAmount.toLocaleString("en-IN")}
+                </span>
               </div>
+              <div className="border-t pt-3 flex justify-between items-center text-base font-bold">
+                <span className="text-foreground">Total Escrow Capital</span>
+                <span className="flex items-center gap-0.5 text-teal-700 dark:text-teal-400">
+                  <IndianRupee className="h-4 w-4" />
+                  {payTotal.toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-50/50 dark:bg-blue-950/10 border border-blue-100 dark:border-blue-900/40 text-[11px] text-blue-700 dark:text-blue-300">
+              💡 <strong>Razorpay Sandbox Mode:</strong> Clicking below will launch the official Razorpay test portal. You can complete the checkout simulation by choosing any test UPI handle or dummy card.
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowPayDialog(false)}>Cancel</Button>
             <Button
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-teal-700 hover:bg-teal-800 text-white font-semibold flex items-center gap-2"
               onClick={handlePay}
               disabled={createPayment.isPending}
             >
-              <IndianRupee className="h-4 w-4 mr-1.5" />
-              {createPayment.isPending ? "Processing..." : "Confirm Payment"}
+              {createPayment.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Initiating Order...
+                </>
+              ) : (
+                <>
+                  <IndianRupee className="h-4 w-4" />
+                  Proceed to Checkout
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -435,6 +575,27 @@ export default function PaymentDetail() {
                 onChange={(e) => setProofNotes(e.target.value)}
                 placeholder="Describe the work completed, materials used, hours spent..."
               />
+            </div>
+            <div>
+              <Label htmlFor="proof-file">Proof Document / Photo</Label>
+              <Input
+                id="proof-file"
+                type="file"
+                accept="image/*,application/pdf"
+                className="mt-1.5 cursor-pointer"
+                disabled={uploading}
+                onChange={handleProofUpload}
+              />
+              {uploading && (
+                <div className="flex items-center gap-2 text-xs text-blue-600 mt-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Uploading to secure Supabase vault…
+                </div>
+              )}
+              {proofUrl && (
+                <div className="text-xs text-green-600 font-medium flex items-center gap-1 mt-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> File uploaded successfully!
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
