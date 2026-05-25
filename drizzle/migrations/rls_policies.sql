@@ -69,3 +69,27 @@ CREATE POLICY mutate_bids ON bids
   TO authenticated
   USING (provider_id = auth.uid())
   WITH CHECK (provider_id = auth.uid());
+
+-- =========================================================================
+-- COMPLIANCE VAULT TABLE POLICIES
+-- =========================================================================
+
+-- Enable Row Level Security (RLS) on compliance_vault table
+ALTER TABLE compliance_vault ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies to prevent conflicts
+DROP POLICY IF EXISTS select_compliance_vault ON compliance_vault;
+DROP POLICY IF EXISTS mutate_compliance_vault ON compliance_vault;
+
+-- SELECT: Only the owner can select their vault record
+CREATE POLICY select_compliance_vault ON compliance_vault
+  FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
+
+-- MUTATE: Only the owner can insert, update or delete their vault record
+CREATE POLICY mutate_compliance_vault ON compliance_vault
+  FOR ALL
+  TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());

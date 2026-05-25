@@ -342,7 +342,135 @@ router.post("/requirements/:id/accept-bid", requireAuth, async (req, res): Promi
   const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, updated.categoryId));
   const [buyer] = await db.select().from(usersTable).where(eq(usersTable.id, updated.buyerId));
   const [bidStats] = await db.select({ count: count(), minBid: min(bidsTable.bidAmount) }).from(bidsTable).where(eq(bidsTable.requirementId, id));
-  res.json(formatReq(updated, cat, buyer, Number(bidStats?.count ?? 0), bidStats?.minBid ? Number(bidStats.minBid) : null));
+   res.json(formatReq(updated, cat, buyer, Number(bidStats?.count ?? 0), bidStats?.minBid ? Number(bidStats.minBid) : null));
+});
+
+router.get("/requirements/:id/smart-match", requireAuth, async (req, res): Promise<void> => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const [requirement] = await db.select().from(requirementsTable).where(eq(requirementsTable.id, id));
+  if (!requirement) {
+    res.status(404).json({ error: "Requirement not found" });
+    return;
+  }
+
+  const bids = await db
+    .select()
+    .from(bidsTable)
+    .where(and(eq(bidsTable.requirementId, id), eq(bidsTable.status, "active")));
+
+  if (bids.length === 0) {
+    res.json({
+      recommendedBidId: null,
+      justification: "No active bids are currently placed on this requirement. Please wait for contractors to bid."
+    });
+    return;
+  }
+
+  // AI Matching Engine
+  let recommendedBidId = bids[0].id;
+  let justification = "This bid is recommended based on pricing efficiency and completion timeline.";
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    try {
+      const prompt = `You are the OmniBid Smart Match AI assistant.
+Evaluate the following B2B requirement and its list of active bids.
+Select the bid that offers the absolute best value considering:
+1. Bid Amount vs Requirement Max Budget (Lower bid is generally better value, but must be realistic)
+2. Estimated completion timeline
+3. Alignment with the requirement's customData constraints (check if technology, skills, or scope match).
+
+Requirement Title: ${requirement.title}
+Description: ${requirement.description}
+Max Budget: ₹${requirement.maxBudget}
+Sector Custom Data Constraints: ${JSON.stringify(requirement.customData || {})}
+
+Active Bids:
+${bids.map((b, index) => `${index + 1}. Bid ID: ${b.id}
+   Bidder ID: ${b.providerId}
+   Amount: ₹${b.bidAmount}
+   Completion: ${b.estimatedCompletion}
+   Message: ${b.message}`).join("\n\n")}
+
+Output format MUST be strictly a JSON object with EXACTLY the following structure (no extra formatting or markdown blocks outside the JSON):
+{
+  "recommendedBidId": "the_best_matching_bid_uuid",
+  "justification": "A short, professional justification explaining why this bid is the best match."
+}`;
+
+      const apiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+
+      if (apiResponse.ok) {
+        const responseData = (await apiResponse.json()) as any;
+        const textResponse = responseData?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (textResponse) {
+          const parsedRes = JSON.parse(textResponse);
+          if (parsedRes.recommendedBidId && bids.some(b => b.id === parsedRes.recommendedBidId)) {
+            recommendedBidId = parsedRes.recommendedBidId;
+            justification = parsedRes.justification;
+          }
+        }
+      }
+    } catch (err) {
+      req.log?.error(err, "Gemini smart-match engine request failed");
+    }
+  } else {
+    // Intelligent matching local fallback (fully deterministic)
+    let bestScore = -Infinity;
+    const maxBudget = Number(requirement.maxBudget);
+
+    for (const b of bids) {
+      const bidAmount = Number(b.bidAmount);
+      
+      // 1. Budget efficiency score (prefer bids close to or slightly below budget, penalize high over-budgets)
+      let priceScore = 0;
+      if (bidAmount <= maxBudget) {
+        priceScore = 50 * (1 - bidAmount / maxBudget); // up to 50 points
+      } else {
+        priceScore = -30 * (bidAmount / maxBudget - 1); // negative score for over-budget
+      }
+
+      // 2. Timeline efficiency score (timelines like "14 days", "7 days" parsed for comparison)
+      let days = 30;
+      const match = b.estimatedCompletion.match(/(\d+)/);
+      if (match) {
+        days = parseInt(match[0], 10);
+      }
+      const timelineScore = Math.max(0, 30 - days); // up to 30 points (shorter is better)
+
+      // 3. CustomData alignment (e.g. matching tech stacks or keywords between bid message and customData)
+      let alignmentScore = 0;
+      const customDataStr = JSON.stringify(requirement.customData || "").toLowerCase();
+      const messageStr = b.message.toLowerCase();
+      const keywords = ["react", "node", "typescript", "rcc", "freight", "cargo", "gst", "audit"];
+      for (const kw of keywords) {
+        if (customDataStr.includes(kw) && messageStr.includes(kw)) {
+          alignmentScore += 10;
+        }
+      }
+
+      const totalScore = priceScore + timelineScore + alignmentScore;
+      if (totalScore > bestScore) {
+        bestScore = totalScore;
+        recommendedBidId = b.id;
+        
+        let reasoning = `This bid offers a competitive pricing of ₹${bidAmount} (budget: ₹${maxBudget}) and a reliable timeline of ${b.estimatedCompletion}.`;
+        if (alignmentScore > 0) {
+          reasoning += ` The contractor shows strong technical alignment with the sector's specific project constraints.`;
+        }
+        justification = reasoning;
+      }
+    }
+  }
+
+  res.json({ recommendedBidId, justification });
 });
 
 router.post("/requirements/:id/repost", requireAuth, async (req, res): Promise<void> => {

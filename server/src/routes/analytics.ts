@@ -331,4 +331,21 @@ router.get("/analytics/time-to-bid", requireAuth, async (req, res): Promise<void
   }
 });
 
+router.get("/analytics/admin-dashboard", requireAuth, async (req, res): Promise<void> => {
+  try {
+    const financials = await db.execute(sql`SELECT * FROM vw_platform_financials`);
+    const sectorAnalytics = await db.execute(sql`SELECT * FROM vw_sector_analytics`);
+    const trustDisputes = await db.execute(sql`SELECT * FROM vw_trust_and_disputes`);
+
+    res.json({
+      financials: financials.rows,
+      sectorAnalytics: sectorAnalytics.rows,
+      trustDisputes: trustDisputes.rows
+    });
+  } catch (err) {
+    req.log?.error(err, "Admin analytics views dashboard query failed");
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 export default router;

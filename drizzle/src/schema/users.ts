@@ -21,6 +21,12 @@ export const userRoleEnum = pgEnum("user_role", [
   "agency_provider",
 ]);
 
+export const kycStatusEnum = pgEnum("kyc_status", [
+  "pending",
+  "verified",
+  "rejected",
+]);
+
 export const usersTable = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -49,8 +55,14 @@ export const usersTable = pgTable("users", {
   serviceRadiusKm: integer("service_radius_km").default(50),
   referralCode: text("referral_code"),
   referredBy: uuid("referred_by"),
+  // KYC fields — added for DigiLocker integration
+  kycStatus: kycStatusEnum("kyc_status").notNull().default("pending"),
+  kycVerifiedAt: timestamp("kyc_verified_at", { withTimezone: true }),
+  razorpayLinkedAccountId: text("razorpay_linked_account_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({
   id: true,

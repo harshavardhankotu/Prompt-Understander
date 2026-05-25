@@ -1,0 +1,36 @@
+name: Continuous Integration & Deployment
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Verify Monorepo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm Package Manager
+        uses: pnpm/action-setup@v3
+        with:
+          version: 11 # Aligns with local pnpm v11 workspace version
+
+      - name: Setup Node.js Environment (Node 20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install Monorepo Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Execute Workspace Typechecks
+        run: pnpm run typecheck
+
+      - name: Run Global Vitest Suite
+        run: npx vitest run

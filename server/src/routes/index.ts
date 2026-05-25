@@ -25,6 +25,7 @@ import auctionRouter from "./auction";
 import trackingRouter from "./tracking";
 import qaRouter from "./qa";
 import webhooksRouter from "./webhooks";
+import kycRouter from "./kyc";
 
 const router: IRouter = Router();
 
@@ -54,5 +55,6 @@ router.use(auctionRouter);
 router.use(trackingRouter);
 router.use("/qa", qaRouter);
 router.use(webhooksRouter);
+router.use(kycRouter);
 
 export default router;

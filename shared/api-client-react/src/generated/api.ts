@@ -58,6 +58,8 @@ import type {
   Referral,
   ReferralStats,
   RegisterBody,
+  ReleaseFundsBody,
+  ReleaseFundsResponse,
   Requirement,
   RequirementDetail,
   RequirementListResponse,
@@ -79,7 +81,11 @@ import type {
   User,
   UserProfile,
   WorkProof,
+  KycVerifyBody,
+  KycVerifyResponse,
+  KycStatusResponse,
 } from "./api.schemas";
+
 
 import { customFetch } from "../custom-fetch";
 import type { ErrorType, BodyType } from "../custom-fetch";
@@ -5010,3 +5016,200 @@ export const useUpdateAdminUser = <
 > => {
   return useMutation(getUpdateAdminUserMutationOptions(options));
 };
+
+/**
+ * @summary Buyer releases held escrow funds to the contractor via Razorpay Route
+ */
+export const getReleaseFundsUrl = (requirementId: string) => {
+  return `/api/requirements/${requirementId}/payment/release`;
+};
+
+export const releaseFunds = async (
+  requirementId: string,
+  releaseFundsBody: ReleaseFundsBody,
+  options?: RequestInit,
+): Promise<ReleaseFundsResponse> => {
+  return customFetch<ReleaseFundsResponse>(getReleaseFundsUrl(requirementId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(releaseFundsBody),
+  });
+};
+
+export const getReleaseFundsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof releaseFunds>>,
+    TError,
+    { requirementId: string; data: BodyType<ReleaseFundsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof releaseFunds>>,
+  TError,
+  { requirementId: string; data: BodyType<ReleaseFundsBody> },
+  TContext
+> => {
+  const mutationKey = ["releaseFunds"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof releaseFunds>>,
+    { requirementId: string; data: BodyType<ReleaseFundsBody> }
+  > = (props) => {
+    const { requirementId, data } = props ?? {};
+    return releaseFunds(requirementId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReleaseFundsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof releaseFunds>>
+>;
+export type ReleaseFundsMutationBody = BodyType<ReleaseFundsBody>;
+export type ReleaseFundsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Buyer releases held escrow funds to the contractor via Razorpay Route
+ */
+export const useReleaseFunds = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof releaseFunds>>,
+    TError,
+    { requirementId: string; data: BodyType<ReleaseFundsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof releaseFunds>>,
+  TError,
+  { requirementId: string; data: BodyType<ReleaseFundsBody> },
+  TContext
+> => {
+  return useMutation(getReleaseFundsMutationOptions(options));
+};
+
+/**
+ * @summary POST /api/kyc/verify — DigiLocker KYC verification
+ */
+export const getVerifyKycUrl = () => `/api/kyc/verify`;
+
+export const verifyKyc = async (
+  kycVerifyBody: KycVerifyBody,
+  options?: RequestInit,
+): Promise<KycVerifyResponse> => {
+  return customFetch<KycVerifyResponse>(getVerifyKycUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(kycVerifyBody),
+  });
+};
+
+export const getVerifyKycMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyKyc>>,
+    TError,
+    BodyType<KycVerifyBody>,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof verifyKyc>>,
+  TError,
+  BodyType<KycVerifyBody>,
+  TContext
+> => {
+  const mutationKey = ["verifyKyc"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof verifyKyc>>,
+    BodyType<KycVerifyBody>
+  > = (data) => verifyKyc(data, requestOptions);
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VerifyKycMutationResult = NonNullable<Awaited<ReturnType<typeof verifyKyc>>>;
+export type VerifyKycMutationBody = BodyType<KycVerifyBody>;
+export type VerifyKycMutationError = ErrorType<unknown>;
+
+export const useVerifyKyc = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyKyc>>,
+    TError,
+    BodyType<KycVerifyBody>,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof verifyKyc>>,
+  TError,
+  BodyType<KycVerifyBody>,
+  TContext
+> => useMutation(getVerifyKycMutationOptions(options));
+
+/**
+ * @summary GET /api/kyc/status — Check current user's KYC status
+ */
+export const getGetKycStatusUrl = () => `/api/kyc/status`;
+
+export const getKycStatus = async (
+  options?: RequestInit,
+): Promise<KycStatusResponse> =>
+  customFetch<KycStatusResponse>(getGetKycStatusUrl(), { ...options, method: "GET" });
+
+export const getGetKycStatusQueryKey = () => ["/api/kyc/status"] as const;
+
+export const getGetKycStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKycStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getKycStatus>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryOptions<Awaited<ReturnType<typeof getKycStatus>>, TError, TData> => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetKycStatusQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getKycStatus>>> = ({
+    signal,
+  }) => getKycStatus({ signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions };
+};
+
+export type GetKycStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getKycStatus>>>;
+export type GetKycStatusQueryError = ErrorType<unknown>;
+
+export const useGetKycStatus = <
+  TData = Awaited<ReturnType<typeof getKycStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getKycStatus>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> => useQuery(getGetKycStatusQueryOptions(options));

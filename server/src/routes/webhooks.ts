@@ -2,10 +2,12 @@ import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import {
   db, usersTable, requirementsTable, bidsTable,
-  categoriesTable, complianceVaultTable, providerSubscriptionsTable
+  categoriesTable, complianceVaultTable, providerSubscriptionsTable,
+  paymentsTable
 } from "@omnibid/db";
 import { z } from "zod";
 import { notifyUser } from "../lib/notifications";
+import crypto from "crypto";
 
 const router: IRouter = Router();
 
@@ -156,6 +158,131 @@ router.post("/webhooks/whatsapp", async (req, res): Promise<void> => {
     success: true,
     reply: `Success! Your bid of ₹${bidAmount} for "${requirement.title}" has been successfully recorded.`,
   });
+});
+
+/**
+ * POST /api/webhooks/razorpay
+ * Verifies Razorpay signature and updates the escrow/payment status to "held" asynchronously.
+ */
+router.post("/webhooks/razorpay", async (req, res): Promise<void> => {
+  const signature = req.headers["x-razorpay-signature"] as string;
+  if (!signature) {
+    res.status(400).json({ error: "Missing x-razorpay-signature header" });
+    return;
+  }
+
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET || "";
+
+  // Verify HMAC-SHA256 signature
+  const rawBody = (req as any).rawBody;
+  const bodyString = rawBody ? rawBody.toString("utf-8") : JSON.stringify(req.body);
+
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(bodyString)
+    .digest("hex");
+
+  const isMock = !secret || secret === "mock_secret";
+  const isSignatureValid = expectedSignature === signature || (isMock && signature === "mock_signature");
+
+  if (!isSignatureValid) {
+    res.status(400).json({ error: "Invalid webhook signature" });
+    return;
+  }
+
+  const { event, payload } = req.body;
+
+  if (event !== "payment.captured" && event !== "order.paid") {
+    res.json({ success: true, message: `Event '${event}' ignored.` });
+    return;
+  }
+
+  let razorpayOrderId: string | undefined;
+  let razorpayPaymentId: string | undefined;
+  let requirementId: string | undefined;
+
+  if (event === "payment.captured") {
+    const paymentEntity = payload?.payment?.entity;
+    razorpayPaymentId = paymentEntity?.id;
+    razorpayOrderId = paymentEntity?.order_id;
+    requirementId = paymentEntity?.notes?.requirementId;
+  } else if (event === "order.paid") {
+    const orderEntity = payload?.order?.entity;
+    razorpayOrderId = orderEntity?.id;
+    requirementId = orderEntity?.notes?.requirementId;
+  }
+
+  // Look up payment record in DB
+  let paymentRecord;
+  if (razorpayOrderId) {
+    const [pmt] = await db
+      .select()
+      .from(paymentsTable)
+      .where(eq(paymentsTable.upiTransactionId, razorpayOrderId));
+    paymentRecord = pmt;
+  }
+  if (!paymentRecord && razorpayPaymentId) {
+    const [pmt] = await db
+      .select()
+      .from(paymentsTable)
+      .where(eq(paymentsTable.upiTransactionId, razorpayPaymentId));
+    paymentRecord = pmt;
+  }
+  if (!paymentRecord && requirementId) {
+    const [pmt] = await db
+      .select()
+      .from(paymentsTable)
+      .where(eq(paymentsTable.requirementId, requirementId));
+    paymentRecord = pmt;
+  }
+
+  if (!paymentRecord) {
+    res.status(404).json({ error: "Associated payment record not found" });
+    return;
+  }
+
+  // Idempotency check: If the escrow status is already 'held' (or beyond, e.g. released), return success directly
+  if (paymentRecord.escrowStatus !== "pending") {
+    res.json({
+      success: true,
+      message: `Payment already processed (current status: '${paymentRecord.escrowStatus}')`,
+      paymentId: paymentRecord.id,
+    });
+    return;
+  }
+
+  const targetPaymentId = razorpayPaymentId || `pay_mock_${Date.now().toString(36)}`;
+
+  // Wrap in a database transaction to ensure atomicity
+  try {
+    await db.transaction(async (tx) => {
+      // 1. Update payment status to 'held' and capture payment ID
+      await tx
+        .update(paymentsTable)
+        .set({
+          escrowStatus: "held",
+          upiTransactionId: targetPaymentId,
+          advanceReleased: paymentRecord.mobilizationAdvancePct > 0,
+          updatedAt: new Date(),
+        })
+        .where(eq(paymentsTable.id, paymentRecord.id));
+
+      // 2. Update requirement status to 'in_progress'
+      await tx
+        .update(requirementsTable)
+        .set({ status: "in_progress" })
+        .where(eq(requirementsTable.id, paymentRecord.requirementId));
+    });
+
+    res.json({
+      success: true,
+      message: "Payment successfully updated to 'held' via Webhook.",
+      paymentId: paymentRecord.id,
+    });
+  } catch (error) {
+    console.error("Failed to update payment in webhook transaction:", error);
+    res.status(500).json({ error: "Failed to process webhook transaction" });
+  }
 });
 
 export default router;

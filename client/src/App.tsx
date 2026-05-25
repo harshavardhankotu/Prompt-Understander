@@ -31,6 +31,7 @@ import MarketIntelligence from "@/pages/market-intelligence";
 import Tracking from "@/pages/tracking";
 import AdvancedAuction from "@/pages/advanced-auction";
 import QATestCases from "@/pages/qa-test-cases";
+import AdminDashboard from "@/pages/admin-dashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +81,7 @@ function Router() {
       <Route path="/analytics" component={Analytics} />
       <Route path="/referral" component={Referral} />
       <Route path="/admin" component={Admin} />
+      <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/qa" component={QA} />
       <Route path="/qa/test-cases" component={QATestCases} />
       <Route path="/finance" component={Finance} />

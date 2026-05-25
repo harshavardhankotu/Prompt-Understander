@@ -52,6 +52,10 @@ export default function PaymentDetail() {
   const [mobPct, setMobPct] = useState(0);
   const [showPayDialog, setShowPayDialog] = useState(false);
   const [showProofDialog, setShowProofDialog] = useState(false);
+  const [showDisputeDialog, setShowDisputeDialog] = useState(false);
+  const [disputeTitle, setDisputeTitle] = useState("");
+  const [disputeDesc, setDisputeDesc] = useState("");
+  const [disputing, setDisputing] = useState(false);
   const [proofNotes, setProofNotes] = useState("");
   const [milestoneTitle, setMilestoneTitle] = useState("Work completion");
   const [milestoneNum, setMilestoneNum] = useState(1);
@@ -237,6 +241,48 @@ export default function PaymentDetail() {
     );
   };
 
+  const handleRaiseDispute = async () => {
+    try {
+      setDisputing(true);
+      const token = localStorage.getItem("omnibid_token");
+      const resp = await fetch(`/api/requirements/${requirementId}/dispute`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          title: disputeTitle || undefined,
+          description: disputeDesc || undefined,
+        }),
+      });
+
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to trigger dispute flow.");
+      }
+
+      setShowDisputeDialog(false);
+      setDisputeTitle("");
+      setDisputeDesc("");
+      qc.invalidateQueries({ queryKey: getGetPaymentQueryKey(requirementId) });
+      qc.invalidateQueries({ queryKey: getGetRequirementQueryKey(requirementId) });
+      refetch();
+      toast({
+        title: "Dispute Raised Successfully",
+        description: "Funds are frozen. Our administrators have been alerted.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Failed to raise dispute",
+        description: err.message || String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setDisputing(false);
+    }
+  };
+
   const escrowStatusColor: Record<string, string> = {
     pending: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
     held: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
@@ -337,6 +383,21 @@ export default function PaymentDetail() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Disputed status banner */}
+                {payment.escrowStatus === "disputed" && (
+                  <div className="p-4 rounded-xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/20 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <XCircle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-800 dark:text-red-300">Escrow Frozen (Disputed)</p>
+                        <p className="text-xs text-red-700/80 dark:text-red-400/70">
+                          A dispute has been raised. Escrow funds are locked. Administrators have been notified to review the project details.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="p-3 rounded-lg bg-muted/50">
                     <div className="text-xs text-muted-foreground">Total Amount</div>
@@ -385,6 +446,18 @@ export default function PaymentDetail() {
                   </div>
                   <Progress value={(payment.milestonesCompleted / payment.totalMilestones) * 100} className="h-2" />
                 </div>
+
+                {/* Raise Dispute CTA */}
+                {(isBuyer || isProvider) && (payment.escrowStatus === "held" || payment.escrowStatus === "in_progress") && (
+                  <Button
+                    variant="outline"
+                    className="w-full border-red-200 hover:border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/10 font-semibold mt-2"
+                    onClick={() => setShowDisputeDialog(true)}
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Raise Dispute / Freeze Funds
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
@@ -605,6 +678,68 @@ export default function PaymentDetail() {
               disabled={!proofNotes.trim() || submitProof.isPending}
             >
               {submitProof.isPending ? "Submitting..." : "Submit for Approval"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Raise Dispute Dialog */}
+      <Dialog open={showDisputeDialog} onOpenChange={setShowDisputeDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-800 dark:text-red-300 text-lg font-bold">
+              <Shield className="h-5 w-5 text-red-600" />
+              Raise Payment Dispute
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              This will instantly freeze all escrow funds. You can provide a brief title and explanation for our administrators to review.
+            </p>
+          </DialogHeader>
+          
+          <div className="space-y-4 my-2 text-sm">
+            <div className="rounded-lg border border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/10 p-3 text-xs text-red-800 dark:text-red-300">
+              ⚠️ <strong>Important:</strong> Freezing the escrow stops all release payments and work approvals. It alerts system admins to arbitrate between both parties.
+            </div>
+
+            <div>
+              <Label htmlFor="dispute-title">Dispute Title</Label>
+              <Input
+                id="dispute-title"
+                className="mt-1.5"
+                placeholder="e.g. Unfinished foundation work / Missing deliverables"
+                value={disputeTitle}
+                onChange={(e) => setDisputeTitle(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="dispute-desc">Description of Issue</Label>
+              <Textarea
+                id="dispute-desc"
+                className="mt-1.5"
+                rows={4}
+                placeholder="Please describe in detail what went wrong, including milestones, deliverables, and any agreement violations..."
+                value={disputeDesc}
+                onChange={(e) => setDisputeDesc(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowDisputeDialog(false)}>Cancel</Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center gap-1.5"
+              onClick={handleRaiseDispute}
+              disabled={disputing}
+            >
+              {disputing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Freezing Funds...
+                </>
+              ) : (
+                "Confirm Dispute & Freeze"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

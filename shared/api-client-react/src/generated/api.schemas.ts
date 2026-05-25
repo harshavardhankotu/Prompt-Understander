@@ -67,6 +67,9 @@ export interface User {
   trustScore: number;
   isVerified: boolean;
   aadhaarVerified: boolean;
+  kycStatus: 'pending' | 'verified' | 'rejected';
+  kycVerifiedAt?: string | null;
+  razorpayLinkedAccountId?: string | null;
   createdAt: string;
 }
 
@@ -89,6 +92,30 @@ export interface UpdateUserBody {
   state?: string;
   pincode?: string;
   avatarUrl?: string;
+}
+
+export interface KycVerifyBody {
+  aadhaarNumber: string;
+  panNumber: string;
+}
+
+export interface KycVerifyResponse {
+  success: boolean;
+  kycStatus: 'pending' | 'verified' | 'rejected';
+  kycVerifiedAt?: string | null;
+  razorpayLinkedAccountId?: string | null;
+  isVerified?: boolean;
+  aadhaarVerified?: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface KycStatusResponse {
+  kycStatus: 'pending' | 'verified' | 'rejected';
+  kycVerifiedAt?: string | null;
+  aadhaarVerified: boolean;
+  isVerified: boolean;
+  razorpayLinkedAccountId?: string | null;
 }
 
 export type CategoryFieldType =
@@ -554,10 +581,21 @@ export interface CreatePaymentBody {
   totalMilestones?: number | null;
 }
 
+export interface ReleaseFundsBody {
+  linkedAccountId: string;
+}
+
+export interface ReleaseFundsResponse {
+  success: boolean;
+  transferId: string;
+  payment: Payment;
+}
+
 export interface SubmitWorkProofBody {
   milestoneNumber: number;
   milestoneTitle: string;
   notes: string;
+
   proofUrl?: string | null;
 }
 

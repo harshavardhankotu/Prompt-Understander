@@ -65,6 +65,22 @@ router.post("/requirements/:requirementId/bids", requireAuth, requireCompliance,
   const [requirement] = await db.select().from(requirementsTable).where(eq(requirementsTable.id, requirementId));
   if (!requirement || requirement.status !== "open") { res.status(400).json({ error: "Requirement not open" }); return; }
 
+  // Duplicate bid check to prevent multiple active bids from same provider
+  const [existingBid] = await db
+    .select()
+    .from(bidsTable)
+    .where(
+      and(
+        eq(bidsTable.requirementId, requirementId),
+        eq(bidsTable.providerId, req.user!.userId),
+        eq(bidsTable.status, "active")
+      )
+    );
+  if (existingBid) {
+    res.status(400).json({ error: "You have already placed an active bid on this requirement." });
+    return;
+  }
+
   // Price floor check
   const [category] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, requirement.categoryId));
   if (category?.minBidFloor && parsed.data.bidAmount < Number(category.minBidFloor)) {

@@ -1,5 +1,5 @@
 // @refresh reset
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import Layout from "@/components/layout";
 import { Countdown } from "@/components/countdown";
@@ -36,6 +36,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 import { getCategoryIcon } from "@/lib/category-icons";
 import {
   AlertCircle,
@@ -72,6 +73,8 @@ export default function RequirementDetail() {
   const [disputeBid, setDisputeBid] = useState<Bid | null>(null);
   const [disputeTitle, setDisputeTitle] = useState("");
   const [disputeDesc, setDisputeDesc] = useState("");
+  const [smartMatchData, setSmartMatchData] = useState<{ recommendedBidId: string | null; justification: string | null } | null>(null);
+  const [isSmartMatching, setIsSmartMatching] = useState(false);
 
   const { data: req, isLoading } = useGetRequirement(id, {
     query: {
@@ -93,6 +96,38 @@ export default function RequirementDetail() {
       },
     },
   });
+
+  // Real-time WebSocket subscription for live bids using Supabase Realtime
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`live-bids-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "bids",
+          filter: `requirement_id=eq.${id}`,
+        },
+        () => {
+          // Instantly trigger React Query refetch to sync UI with database changes
+          qc.invalidateQueries({ queryKey: getGetRequirementQueryKey(id) });
+          qc.invalidateQueries({ queryKey: getGetRequirementStatsQueryKey(id) });
+          
+          toast({
+            title: "New Live Bid!",
+            description: "A new bid has just been placed in real-time.",
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, qc, toast]);
 
   const acceptBidMutation = useAcceptBid();
   const createDisputeMutation = useCreateDispute();
@@ -197,6 +232,42 @@ export default function RequirementDetail() {
         onError: () => toast({ title: "Error", description: "Failed to repost", variant: "destructive" }),
       }
     );
+  };
+
+  const handleSmartMatch = async () => {
+    if (!id) return;
+    setIsSmartMatching(true);
+    try {
+      const token = localStorage.getItem("omnibid_token");
+      const response = await fetch(`/api/requirements/${id}/smart-match`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSmartMatchData(data);
+        toast({
+          title: "AI Smart Match Complete!",
+          description: "We have highlighted the AI recommended bid on your bid board.",
+        });
+      } else {
+        toast({
+          title: "Smart Match Failed",
+          description: "Could not evaluate bids using the AI recommendation engine.",
+          variant: "destructive"
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to the smart-match endpoint.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSmartMatching(false);
+    }
   };
 
   const Icon = req ? getCategoryIcon(req.categoryIconName) : null;
@@ -327,6 +398,27 @@ export default function RequirementDetail() {
               </Button>
             )}
 
+            {isOwner && req.status === "open" && req.bids.length > 0 && (
+              <Button
+                className="w-full mt-3 font-semibold bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center gap-1.5"
+                onClick={handleSmartMatch}
+                disabled={isSmartMatching}
+                data-testid="button-smart-match"
+              >
+                {isSmartMatching ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    AI is analyzing bids...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4" />
+                    AI Smart Match Bids
+                  </>
+                )}
+              </Button>
+            )}
+
             {/* Bhaav-Taav negotiation room — buyer enters for top 3 bidders */}
             {isOwner && canNegotiate && req.winningBidId && (
               <Button
@@ -418,7 +510,13 @@ export default function RequirementDetail() {
               return (
                 <div
                   key={bid.id}
-                  className={`rounded-xl border p-4 ${bid.isHighlighted ? "border-amber-400 bg-amber-50/50 dark:bg-amber-950/10" : "border-border"} ${bid.status === "accepted" ? "border-green-500 bg-green-50/50 dark:bg-green-950/10" : ""}`}
+                  className={`rounded-xl border p-4 transition-all duration-300 ${
+                    smartMatchData?.recommendedBidId === bid.id
+                      ? "border-violet-500 bg-violet-50/50 dark:bg-violet-950/10 shadow-md shadow-violet-500/5 ring-1 ring-violet-500"
+                      : bid.isHighlighted
+                      ? "border-amber-400 bg-amber-50/50 dark:bg-amber-950/10"
+                      : "border-border"
+                  } ${bid.status === "accepted" ? "border-green-500 bg-green-50/50 dark:bg-green-950/10" : ""}`}
                   data-testid={`card-bid-${bid.id}`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -430,6 +528,11 @@ export default function RequirementDetail() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-semibold text-sm">{bid.providerName}</span>
                           {bid.providerIsVerified && <Shield className="h-3.5 w-3.5 text-primary" />}
+                          {smartMatchData?.recommendedBidId === bid.id && (
+                            <Badge className="text-[10px] bg-violet-600 text-white px-1.5 py-0 flex items-center gap-0.5">
+                              ✨ AI Recommended
+                            </Badge>
+                          )}
                           {bid.isHighlighted && <Badge className="text-[10px] bg-amber-500 text-white px-1.5 py-0">Featured</Badge>}
                           {bid.status === "accepted" && <Badge className="text-[10px] bg-green-500 text-white px-1.5 py-0"><CheckCircle2 className="h-2.5 w-2.5 mr-0.5 inline" />Accepted</Badge>}
                           {isEnvAPending && <Badge className="text-[10px] bg-violet-500 text-white px-1.5 py-0"><Lock className="h-2.5 w-2.5 mr-0.5 inline" />Tech Review Pending</Badge>}
@@ -488,6 +591,13 @@ export default function RequirementDetail() {
                   </div>
 
                   <p className="text-sm mt-2 text-foreground/80">{bid.message}</p>
+
+                  {smartMatchData?.recommendedBidId === bid.id && smartMatchData.justification && (
+                    <div className="mt-3 p-3 rounded-lg bg-violet-100/50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-850 text-xs text-violet-800 dark:text-violet-300">
+                      <Zap className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400 inline mr-1.5 align-middle animate-pulse" />
+                      <strong className="align-middle text-violet-900 dark:text-violet-200">AI Recommended Match:</strong> <span className="align-middle">{smartMatchData.justification}</span>
+                    </div>
+                  )}
 
                   {/* Envelope A technical document */}
                   {"envelopeAUrl" in bid && bid.envelopeAUrl && (

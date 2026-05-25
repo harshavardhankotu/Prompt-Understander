@@ -32,7 +32,8 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
       "http://localhost:5173",
       "https://omnibid-client.vercel.app",
       "capacitor://localhost",
-    ];
+      process.env.CLIENT_URL || "",
+    ].filter(Boolean);
 
 app.use(
   cors({
@@ -47,7 +48,13 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req: any, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);

@@ -128,6 +128,9 @@ router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
     trustScore: user.trustScore,
     isVerified: user.isVerified,
     aadhaarVerified: user.aadhaarVerified,
+    kycStatus: user.kycStatus,
+    kycVerifiedAt: user.kycVerifiedAt?.toISOString() ?? null,
+    razorpayLinkedAccountId: user.razorpayLinkedAccountId,
     createdAt: user.createdAt.toISOString(),
   });
 });
