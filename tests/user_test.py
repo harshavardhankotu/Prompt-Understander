@@ -3,6 +3,7 @@ import os
 import requests
 import sqlite3
 import json
+import re
 
 # Set stdout to UTF-8 to avoid Windows console CP1252 emoji encoding crashes
 if hasattr(sys.stdout, 'reconfigure'):
@@ -14,10 +15,49 @@ sys.path.insert(0, PROJECT_ROOT)
 
 BASE_URL = "http://127.0.0.1:5000"
 
+def get_authenticated_session():
+    session = requests.Session()
+    
+    # 1. GET /login to retrieve csrf token
+    print("🔑 Fetching login page to extract CSRF token...")
+    r = session.get(f"{BASE_URL}/login")
+    if r.status_code != 200:
+        print(f"❌ Failed to fetch login page. Status: {r.status_code}")
+        sys.exit(1)
+        
+    # Extract csrf_token using regex
+    match = re.search(r'name="csrf_token"\s+value="([^"]+)"', r.text)
+    if not match:
+        print("❌ Could not find csrf_token on the login page!")
+        sys.exit(1)
+    csrf_token = match.group(1)
+    print(f"✅ Extracted CSRF token successfully.")
+    
+    # 2. POST /login with email, password, and csrf_token
+    print("🔑 Authenticating as admin...")
+    payload = {
+        "email": "admin@marketing.ai",
+        "password": "admin123",
+        "csrf_token": csrf_token
+    }
+    r_login = session.post(f"{BASE_URL}/login", data=payload, allow_redirects=True)
+    if r_login.status_code != 200 or "login" in r_login.url:
+        print("❌ Login failed! Please verify credentials or server status.")
+        sys.exit(1)
+        
+    print("✅ Successfully authenticated as admin using session!")
+    
+    # Attach X-CSRFToken header to all session requests
+    session.headers.update({"X-CSRFToken": csrf_token})
+    return session
+
 def run_e2e_test():
     print("=" * 60)
-    print("🚀 AUTOMATED E2E USER TEST SUITE")
+    print("🚀 AUTOMATED E2E USER TEST SUITE (SRE SECURE)")
     print("=" * 60)
+
+    # Establish authenticated session
+    session = get_authenticated_session()
 
     # -------------------------------------------------------------
     # Step 1: Start a live_links workflow
@@ -25,7 +65,7 @@ def run_e2e_test():
     print("\n[Step 1] Triggering 'live_links' workflow...")
     payload = {"sector": "live_links"}
     try:
-        r = requests.post(f"{BASE_URL}/api/run_pipeline", json=payload, timeout=90)
+        r = session.post(f"{BASE_URL}/api/run_pipeline", json=payload, timeout=90)
     except Exception as e:
         print(f"❌ Failed to connect to server: {e}")
         print("Please ensure the Flask server is running on http://127.0.0.1:5000")
@@ -77,7 +117,7 @@ def run_e2e_test():
         "commission": commission
     }
     
-    r_click = requests.get(click_url, params=params, allow_redirects=False, timeout=10)
+    r_click = session.get(click_url, params=params, allow_redirects=False, timeout=10)
     if r_click.status_code not in (302, 200):
         print(f"❌ Click redirect failed with status code {r_click.status_code}: {r_click.text}")
         sys.exit(1)
@@ -90,7 +130,7 @@ def run_e2e_test():
     # Step 3: Check History page
     # -------------------------------------------------------------
     print("\n[Step 3] Fetching history logs and verifying dynamic statistics & click syncing...")
-    r_hist = requests.get(f"{BASE_URL}/api/history", params={"sector": "live_links"}, timeout=10)
+    r_hist = session.get(f"{BASE_URL}/api/history", params={"sector": "live_links"}, timeout=10)
     if r_hist.status_code != 200:
         print(f"❌ Failed to fetch history: {r_hist.text}")
         sys.exit(1)
@@ -136,7 +176,7 @@ def run_e2e_test():
     # Step 4: Run a manual retargeting sweep
     # -------------------------------------------------------------
     print("\n[Step 4] Triggering manual Retargeting Sweep...")
-    r_retarget = requests.post(f"{BASE_URL}/api/run_retargeting", timeout=30)
+    r_retarget = session.post(f"{BASE_URL}/api/run_retargeting", timeout=30)
     if r_retarget.status_code != 200:
         print(f"❌ Retargeting engine sweep failed: {r_retarget.text}")
         sys.exit(1)
@@ -152,7 +192,7 @@ def run_e2e_test():
         print(f"   - Product: {p.get('product_title')} | Strategy: {p.get('strategy')}")
 
     # Verify retargeting stats are logged
-    r_retarget_stats = requests.get(f"{BASE_URL}/api/retargeting_stats", timeout=10)
+    r_retarget_stats = session.get(f"{BASE_URL}/api/retargeting_stats", timeout=10)
     retarget_stats = r_retarget_stats.json()
     recent_logs = retarget_stats.get("recent_logs", [])
     print(f"✅ Retargeting Activity Log has {len(recent_logs)} recent actions logged.")
@@ -167,8 +207,8 @@ def run_e2e_test():
     print("\n[Step 5] Performing visual layout integrity checklist...")
     
     # Check index and history HTML templates existence and load status
-    r_index = requests.get(BASE_URL, timeout=10)
-    r_hist_page = requests.get(f"{BASE_URL}/history", timeout=10)
+    r_index = session.get(BASE_URL, timeout=10)
+    r_hist_page = session.get(f"{BASE_URL}/history", timeout=10)
     
     if r_index.status_code == 200 and r_hist_page.status_code == 200:
         print("✅ Dashboard page (/) is healthy and rendering.")
@@ -178,7 +218,7 @@ def run_e2e_test():
         sys.exit(1)
 
     # Check that fallback graphic serves cleanly
-    r_graphic = requests.get(f"{BASE_URL}/image/test_fallback_graphic.jpg", timeout=10)
+    r_graphic = session.get(f"{BASE_URL}/image/test_fallback_graphic.jpg", timeout=10)
     if r_graphic.status_code == 200:
         print("✅ Fallback graphic asset serves perfectly!")
     else:
@@ -186,7 +226,7 @@ def run_e2e_test():
         sys.exit(1)
 
     # Check scheduler status endpoint
-    r_sched = requests.get(f"{BASE_URL}/api/scheduler_status", timeout=10)
+    r_sched = session.get(f"{BASE_URL}/api/scheduler_status", timeout=10)
     sched_status = r_sched.json()
     if sched_status.get("status") == "success":
         print(f"✅ Scheduler status verified: active={sched_status.get('scheduler_running')} jobs={len(sched_status.get('jobs', []))}")
