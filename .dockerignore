@@ -1,0 +1,27 @@
+# Heavy development dependencies
+node_modules/
+.pnpm-store/
+.pnpm-debug.log
+
+# Build outputs and compilation artifacts
+dist/
+build/
+**/*.tsbuildinfo
+
+# Version control and local development configurations
+.git/
+.github/
+.env
+.env.*
+!.env.example
+
+# Miscellaneous
+*.md
+.replit
+.replitignore
+replit.md
+attached_assets/
+scrapers/
+scratch/
+brain/
+tests/
