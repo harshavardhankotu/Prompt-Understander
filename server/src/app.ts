@@ -39,7 +39,11 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes("*")) {
+      const cleanOrigin = origin.replace(/\/$/, "");
+      const cleanAllowed = allowedOrigins.map((o) => o.trim().replace(/\/$/, ""));
+      const isVercel = /\.vercel\.app$/.test(cleanOrigin);
+
+      if (cleanAllowed.includes(cleanOrigin) || cleanAllowed.includes("*") || isVercel) {
         callback(null, true);
       } else {
         callback(new Error(`Not allowed by CORS: ${origin}`));

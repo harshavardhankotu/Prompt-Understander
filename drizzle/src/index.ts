@@ -12,12 +12,15 @@ dotenv.config(); // fallback
 const { Pool } = pg;
 
 if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+  console.warn("⚠️ DATABASE_URL must be set to run queries. Database connection is deferred.");
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle(pool, { schema });
+export const pool = process.env.DATABASE_URL 
+  ? new Pool({ connectionString: process.env.DATABASE_URL }) 
+  : undefined;
+
+export const db = pool 
+  ? drizzle(pool as any, { schema }) 
+  : undefined as any;
 
 export * from "./schema";

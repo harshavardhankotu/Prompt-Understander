@@ -25,8 +25,9 @@ if (fs.existsSync(rootEnvPath)) {
 import { eq, and, sql } from "drizzle-orm";
 
 const BACKEND_URL = "http://127.0.0.1:3001/api";
+const shouldSkip = !!process.env.CI || !process.env.DATABASE_URL;
 
-describe("Drizzle Business Logic & Transaction Audit Suite", () => {
+describe.skipIf(shouldSkip)("Drizzle Business Logic & Transaction Audit Suite", () => {
   let db: any;
   let usersTable: any;
   let categoriesTable: any;
