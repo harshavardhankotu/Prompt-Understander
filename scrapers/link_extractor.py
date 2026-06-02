@@ -3,6 +3,8 @@ import json
 import os
 import re
 import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../bots')))
 import random
 import requests
 from datetime import datetime
