@@ -12,6 +12,7 @@ import re
 from datetime import datetime
 
 # Set up module paths
+os.environ["FAST_VIDEO_RENDER"] = "True"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../bots')))
 
@@ -148,7 +149,7 @@ class TestSecurityHardening(unittest.TestCase):
             prod_id = f"bot_test_{int(time.time())}"
             # Make request simulating crawler
             requests.get(
-                f"{BASE_URL}/go/{prod_id}?url=https://www.amazon.in/s?k=test&title=Test&sector=beauty",
+                f"{BASE_URL}/go/{prod_id}?url=https://offers.cpa-arbitrage.com/auto-sweep&title=Test&sector=auto_insurance",
                 headers={"User-Agent": ua},
                 allow_redirects=False
             )
@@ -203,10 +204,10 @@ class TestSecurityHardening(unittest.TestCase):
     def test_08_ftc_disclosure_presence(self):
         """8. English, Hindi, and Tamil generated and fallback copies contain explicit disclosures"""
         product = {
-            "title": "Test Phone",
-            "price": "15,000",
-            "platform": "Amazon",
-            "sector": "smartphones"
+            "title": "Top-Tier Auto Insurance Quote Sweep",
+            "price": "3,200",
+            "platform": "Auto Insure Tunnel",
+            "sector": "auto_insurance"
         }
         
         # Test fallback / mock captions generator
@@ -214,15 +215,15 @@ class TestSecurityHardening(unittest.TestCase):
         
         # English disclosure
         self.assertIn("#Ad", copies["en"])
-        self.assertIn("Disclosure: As an affiliate, I earn a commission", copies["en"])
+        self.assertIn("Disclosure: Paid partner. Earns commission on qualified quote submissions.", copies["en"])
         
         # Hindi disclosure
         self.assertIn("#Ad", copies["hi"])
-        self.assertIn("डिस्क्लोज़र: एक एफिलिएट के रूप में", copies["hi"])
+        self.assertIn("डिस्क्लोज़र: पेड पार्टनर", copies["hi"])
         
         # Tamil disclosure
         self.assertIn("#Ad", copies["ta"])
-        self.assertIn("வெளிப்படுத்தல்: ஒரு அஃபிலியேட்டாக", copies["ta"])
+        self.assertIn("வெளிப்படுத்தல்: கட்டண கூட்டாளர்", copies["ta"])
 
     def test_09_sqlite_pragma_verification(self):
         """9. SQLite connections have foreign_keys pragma enabled globally"""
@@ -263,9 +264,9 @@ class TestSecurityHardening(unittest.TestCase):
         click_id = affiliate_tracker.record_click(
             product_id=product_id,
             product_title="Invalid Sig Product",
-            sector="beauty",
+            sector="auto_insurance",
             channel="direct",
-            affiliate_link="https://www.amazon.in/beauty",
+            affiliate_link="https://offers.cpa-arbitrage.com/auto-sweep",
             session_id=session_id,
             user_agent="Mozilla/5.0"
         )
@@ -278,13 +279,13 @@ class TestSecurityHardening(unittest.TestCase):
             "sale_amount": 100.0,
             "commission_amount": 5.0,
             "transaction_id": transaction_id,
-            "network_name": "amazon"
+            "network_name": "cpa_lead_net_9876"
         }
         raw_payload = json.dumps(payload).encode('utf-8')
 
         # 3. Post with invalid signature
         r = requests.post(
-            f"{BASE_URL}/postback/conversion",
+            f"{BASE_URL}/postback/cpa_lead",
             data=raw_payload,
             headers={
                 "X-Signature": "invalid_sig_here",
@@ -323,9 +324,9 @@ class TestSecurityHardening(unittest.TestCase):
         click_id = affiliate_tracker.record_click(
             product_id=product_id,
             product_title="Conv Product",
-            sector="beauty",
+            sector="auto_insurance",
             channel="direct",
-            affiliate_link="https://www.amazon.in/beauty",
+            affiliate_link="https://offers.cpa-arbitrage.com/auto-sweep",
             session_id=session_id,
             user_agent="Mozilla/5.0"
         )
@@ -338,14 +339,14 @@ class TestSecurityHardening(unittest.TestCase):
             "sale_amount": 1500.0,
             "commission_amount": 90.0,
             "transaction_id": transaction_id,
-            "network_name": "amazon"
+            "network_name": "cpa_lead_net_9876"
         }
         raw_payload = json.dumps(payload).encode('utf-8')
         sig = hmac.new(secret.encode('utf-8'), raw_payload, hashlib.sha256).hexdigest()
 
         # 3. Post to webhook
         r = requests.post(
-            f"{BASE_URL}/postback/conversion",
+            f"{BASE_URL}/postback/cpa_lead",
             data=raw_payload,
             headers={
                 "X-Signature": sig,
@@ -396,9 +397,9 @@ class TestSecurityHardening(unittest.TestCase):
         click_id = affiliate_tracker.record_click(
             product_id=product_id,
             product_title="Failed Product",
-            sector="beauty",
+            sector="auto_insurance",
             channel="direct",
-            affiliate_link="https://www.amazon.in/beauty",
+            affiliate_link="https://offers.cpa-arbitrage.com/auto-sweep",
             session_id=session_id,
             user_agent="Mozilla/5.0"
         )
@@ -411,7 +412,7 @@ class TestSecurityHardening(unittest.TestCase):
             "sale_amount": 1200.0,
             "commission_amount": 72.0,
             "transaction_id": transaction_id,
-            "network_name": "amazon",
+            "network_name": "cpa_lead_net_9876",
             "force_failure_test": True
         }
         raw_payload = json.dumps(payload).encode('utf-8')
@@ -419,7 +420,7 @@ class TestSecurityHardening(unittest.TestCase):
 
         # 3. Post to webhook (expect 500 error due to simulated runtime failure)
         r = requests.post(
-            f"{BASE_URL}/postback/conversion",
+            f"{BASE_URL}/postback/cpa_lead",
             data=raw_payload,
             headers={
                 "X-Signature": sig,
@@ -458,9 +459,9 @@ class TestSecurityHardening(unittest.TestCase):
         click_id = affiliate_tracker.record_click(
             product_id=product_id,
             product_title="Dup Product",
-            sector="beauty",
+            sector="auto_insurance",
             channel="direct",
-            affiliate_link="https://www.amazon.in/beauty",
+            affiliate_link="https://offers.cpa-arbitrage.com/auto-sweep",
             session_id=session_id,
             user_agent="Mozilla/5.0"
         )
@@ -473,14 +474,14 @@ class TestSecurityHardening(unittest.TestCase):
             "sale_amount": 1000.0,
             "commission_amount": 60.0,
             "transaction_id": transaction_id,
-            "network_name": "amazon"
+            "network_name": "cpa_lead_net_9876"
         }
         raw_payload = json.dumps(payload).encode('utf-8')
         sig = hmac.new(secret.encode('utf-8'), raw_payload, hashlib.sha256).hexdigest()
 
         # 3. Post to webhook (First request: expect success 200)
         r1 = requests.post(
-            f"{BASE_URL}/postback/conversion",
+            f"{BASE_URL}/postback/cpa_lead",
             data=raw_payload,
             headers={
                 "X-Signature": sig,
@@ -492,7 +493,7 @@ class TestSecurityHardening(unittest.TestCase):
 
         # 4. Post to webhook again (Second request: expect success 200 with idempotent message)
         r2 = requests.post(
-            f"{BASE_URL}/postback/conversion",
+            f"{BASE_URL}/postback/cpa_lead",
             data=raw_payload,
             headers={
                 "X-Signature": sig,
@@ -602,9 +603,9 @@ class TestSecurityHardening(unittest.TestCase):
         """18. Running the complete sector pipeline and retargeting works end-to-end with security controls active"""
         # Trigger single sector run via pipeline service
         import pipeline_service
-        res = pipeline_service._run_single_sector("beauty")
+        res = pipeline_service._run_single_sector("auto_insurance")
         self.assertIsNotNone(res)
-        self.assertEqual(res["sector"], "beauty")
+        self.assertEqual(res["sector"], "auto_insurance")
         self.assertGreater(len(res["data"]), 0)
 
     # ═══════════════════════════════════════════════════════════════════════

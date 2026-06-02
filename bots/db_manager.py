@@ -156,7 +156,7 @@ def setup_database():
         )''')
 
         # Seed circuit breaker states for immediate visibility on SRE dashboard
-        for provider in ['gemini', 'telegram', 'playwright', 'twitter', 'instagram', 'whatsapp']:
+        for provider in ['gemini', 'telegram', 'lead_aggregator', 'twilio_voice', 'instagram', 'twitter', 'whatsapp']:
             cursor.execute("""
             INSERT OR IGNORE INTO circuit_breaker_state (provider, state, failure_count, success_count)
             VALUES (?, 'CLOSED', 0, 0)
@@ -232,20 +232,25 @@ def setup_database():
         cursor.execute("SELECT 1 FROM operator_settings WHERE key = 'commission_rates'")
         if not cursor.fetchone():
             default_rates = {
-                "amazon":  {"default": 4, "smartphones": 2, "laptops": 3, "beauty": 6,
-                            "kitchen": 8, "home": 7, "sports": 5, "automotive": 4,
-                            "accessories": 9, "fashion": 8},
-                "flipkart": {"default": 6, "smartphones": 3, "laptops": 4, "beauty": 10,
-                             "kitchen": 10, "home": 9, "sports": 7, "automotive": 5,
-                             "accessories": 12, "fashion": 10},
-                "myntra":  {"default": 8, "fashion": 12, "beauty": 10, "accessories": 15},
+                "cpa_lead_net_9876": {
+                    "default": 35,
+                    "auto_insurance": 45,
+                    "health_insurance": 40,
+                    "debt_relief": 50,
+                    "solar_energy": 45,
+                    "home_security": 40,
+                    "live_links": 35
+                }
             }
             cursor.execute("INSERT INTO operator_settings (key, value) VALUES ('commission_rates', ?)", (json.dumps(default_rates),))
             
         # Seed postback secret
         cursor.execute("SELECT 1 FROM operator_settings WHERE key = 'postback_secret'")
         if not cursor.fetchone():
-            cursor.execute("INSERT INTO operator_settings (key, value) VALUES ('postback_secret', 'default_secret_key_123')", ())
+            from dotenv import load_dotenv
+            load_dotenv()
+            default_secret = os.getenv('POSTBACK_SECRET', 'default_secret_key_123')
+            cursor.execute("INSERT INTO operator_settings (key, value) VALUES ('postback_secret', ?)", (default_secret,))
 
         # 10. Dynamic Agency system_settings Table
         cursor.execute('''
@@ -256,20 +261,15 @@ def setup_database():
 
         # Seed default agency settings
         defaults = {
-            "amazon_tag": "marketingai-21",
-            "flipkart_tag": "marketingai",
+            "cpa_network_id": "cpa_lead_net_9876",
+            "primary_routing_domain": "https://offers.cpa-arbitrage.com",
             "auto_publish_timeout": "30",
             "active_sectors": json.dumps({
-                "smartphones": True,
-                "laptops": True,
-                "fashion_men": True,
-                "fashion_women": True,
-                "beauty": True,
-                "home": True,
-                "kitchen": True,
-                "sports": True,
-                "accessories": True,
-                "automotive": True,
+                "auto_insurance": True,
+                "health_insurance": True,
+                "debt_relief": True,
+                "solar_energy": True,
+                "home_security": True,
                 "live_links": True
             })
         }
@@ -277,6 +277,41 @@ def setup_database():
             cursor.execute("SELECT 1 FROM system_settings WHERE key = ?", (k,))
             if not cursor.fetchone():
                 cursor.execute("INSERT INTO system_settings (key, value) VALUES (?, ?)", (k, v))
+
+        # 11. Telephony Pool Table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS cpa_phone_pool (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tracking_number TEXT UNIQUE,
+            extension_pin TEXT,
+            assigned_campaign_id INTEGER,
+            assigned_product_id TEXT,
+            allocated_at TIMESTAMP,
+            status TEXT DEFAULT 'available',
+            FOREIGN KEY (assigned_campaign_id) REFERENCES campaigns (id)
+        )''')
+
+        # Seed default cpa_phone_pool values if empty
+        cursor.execute("SELECT COUNT(*) FROM cpa_phone_pool")
+        if cursor.fetchone()[0] == 0:
+            phone_seeds = [
+                ("+18005550101", "101"),
+                ("+18005550102", "102"),
+                ("+18005550103", "103"),
+                ("+18005550104", "104"),
+                ("+18005550105", "105"),
+                ("+18005550199", "199"),
+                ("+18005550201", "201"),
+                ("+18005550202", "202"),
+                ("+18005550301", "301"),
+                ("+18005550401", "401"),
+                ("+18005550501", "501")
+            ]
+            for number, pin in phone_seeds:
+                cursor.execute("""
+                INSERT OR IGNORE INTO cpa_phone_pool (tracking_number, extension_pin, status)
+                VALUES (?, ?, 'available')
+                """, (number, pin))
 
         # Safe dynamic migration: add status and publish_at to campaigns if not exist
         cursor.execute("PRAGMA table_info(campaigns)")
@@ -297,6 +332,30 @@ def setup_database():
         dist_cols = [row[1] for row in cursor.fetchall()]
         if 'message_id' not in dist_cols:
             cursor.execute("ALTER TABLE distribution_logs ADD COLUMN message_id TEXT")
+        
+        # 12. Phase 10: UPI Wallet & Payout Transactions
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_wallets (
+            user_id TEXT PRIMARY KEY,
+            available_balance REAL CHECK (available_balance >= 0.0) DEFAULT 0.0
+        )''')
+
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS payout_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            payout_id TEXT UNIQUE,
+            user_id TEXT,
+            payout_amount REAL CHECK (payout_amount > 0.0),
+            upi_id TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+
+        # Seed initial wallet balance for testing
+        cursor.execute("SELECT COUNT(*) FROM user_wallets")
+        if cursor.fetchone()[0] == 0:
+            cursor.execute("INSERT OR IGNORE INTO user_wallets (user_id, available_balance) VALUES ('test_user', 500.0)")
+            cursor.execute("INSERT OR IGNORE INTO user_wallets (user_id, available_balance) VALUES ('guest@marketing.ai', 2500.0)")
         
         conn.commit()
     except Exception as e:
@@ -346,6 +405,15 @@ def save_campaign(campaign_data, sector="tech"):
         
         campaign_id = cursor.lastrowid
         
+        # Sync telephony pool: update assigned_campaign_id for pre-allocated product_id
+        prod_id = campaign_data.get('id')
+        if prod_id:
+            cursor.execute('''
+            UPDATE cpa_phone_pool
+            SET assigned_campaign_id = ?
+            WHERE assigned_product_id = ?
+            ''', (campaign_id, prod_id))
+        
         # Insert distribution logs
         for dist in campaign_data.get('distribution', []):
             d_metrics = dist.get('metrics', {})
@@ -372,16 +440,19 @@ def save_campaign(campaign_data, sector="tech"):
         conn.close()
 
 def get_system_setting(key, default=""):
+    conn = None
     try:
         conn = sqlite3.connect(DB_PATH, timeout=5.0)
         cursor = conn.cursor()
         cursor.execute("SELECT value FROM system_settings WHERE key = ?", (key,))
         row = cursor.fetchone()
-        conn.close()
         if row:
             return row[0]
     except Exception:
         pass
+    finally:
+        if conn:
+            conn.close()
     return default
 
 if __name__ == "__main__":

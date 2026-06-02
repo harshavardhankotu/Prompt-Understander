@@ -17,9 +17,14 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_limiter.errors import RateLimitExceeded
 import bcrypt
+from dotenv import load_dotenv
+
+# Initialize environment variables at startup
+load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'a_very_secret_key_for_session_signing_987654'
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'a_very_secret_key_for_session_signing_987654')
+
 
 @app.before_request
 def check_api_auth_before_csrf():
@@ -186,17 +191,20 @@ def seed_users():
 
 # Helper to fetch postback signature secret
 def get_postback_secret():
+    conn = None
     try:
         conn = sqlite3.connect(db_manager.DB_PATH, timeout=5.0)
         cursor = conn.cursor()
         cursor.execute("SELECT value FROM operator_settings WHERE key = 'postback_secret'")
         row = cursor.fetchone()
-        conn.close()
         if row:
             return row[0]
     except Exception:
         pass
-    return "default_secret_key_123"
+    finally:
+        if conn:
+            conn.close()
+    return os.getenv('POSTBACK_SECRET', 'default_secret_key_123')
 
 # ═══════════════════════════════════════════════════════════════════════
 # AUTHENTICATION ROUTES
@@ -251,6 +259,8 @@ def settings_page():
         amazon_tag = request.form.get('amazon_tag', 'marketingai-21')
         flipkart_tag = request.form.get('flipkart_tag', 'marketingai')
         auto_publish_timeout = request.form.get('auto_publish_timeout', '30')
+        cpa_network_id = request.form.get('cpa_network_id', '').strip()
+        primary_routing_domain = request.form.get('primary_routing_domain', '').strip()
         
         # Build active sectors mapping from form checkboxes
         from product_scraper import SECTOR_CONFIG
@@ -259,22 +269,29 @@ def settings_page():
             sectors_dict[s] = (request.form.get(f"sector_{s}") == "on")
         active_sectors_json = json.dumps(sectors_dict)
         
-        try:
-            json.loads(rates_raw)
-            # Save operator settings
-            cursor.execute("INSERT OR REPLACE INTO operator_settings (key, value) VALUES ('commission_rates', ?)", (rates_raw,))
-            cursor.execute("INSERT OR REPLACE INTO operator_settings (key, value) VALUES ('postback_secret', ?)", (secret_raw,))
-            
-            # Save system settings
-            cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('amazon_tag', ?)", (amazon_tag,))
-            cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('flipkart_tag', ?)", (flipkart_tag,))
-            cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('auto_publish_timeout', ?)", (auto_publish_timeout,))
-            cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('active_sectors', ?)", (active_sectors_json,))
-            
-            conn.commit()
-            flash("Settings updated successfully!", "success")
-        except Exception as e:
-            flash(f"Error updating settings: {e}", "error")
+        if not cpa_network_id:
+            flash("Error: CPA Network ID is a required field.", "error")
+        elif not primary_routing_domain:
+            flash("Error: Primary Routing Domain is a required field.", "error")
+        else:
+            try:
+                json.loads(rates_raw)
+                # Save operator settings
+                cursor.execute("INSERT OR REPLACE INTO operator_settings (key, value) VALUES ('commission_rates', ?)", (rates_raw,))
+                cursor.execute("INSERT OR REPLACE INTO operator_settings (key, value) VALUES ('postback_secret', ?)", (secret_raw,))
+                
+                # Save system settings
+                cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('amazon_tag', ?)", (amazon_tag,))
+                cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('flipkart_tag', ?)", (flipkart_tag,))
+                cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('auto_publish_timeout', ?)", (auto_publish_timeout,))
+                cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('cpa_network_id', ?)", (cpa_network_id,))
+                cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('primary_routing_domain', ?)", (primary_routing_domain,))
+                cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('active_sectors', ?)", (active_sectors_json,))
+                
+                conn.commit()
+                flash("Settings updated successfully!", "success")
+            except Exception as e:
+                flash(f"Error updating settings: {e}", "error")
             
     # Load current values
     cursor.execute("SELECT value FROM operator_settings WHERE key = 'commission_rates'")
@@ -283,7 +300,7 @@ def settings_page():
     
     cursor.execute("SELECT value FROM operator_settings WHERE key = 'postback_secret'")
     secret_row = cursor.fetchone()
-    postback_secret = secret_row["value"] if secret_row else "default_secret_key_123"
+    postback_secret = secret_row["value"] if secret_row else os.getenv('POSTBACK_SECRET', 'default_secret_key_123')
     
     # Load system settings
     cursor.execute("SELECT value FROM system_settings WHERE key = 'amazon_tag'")
@@ -297,6 +314,14 @@ def settings_page():
     cursor.execute("SELECT value FROM system_settings WHERE key = 'auto_publish_timeout'")
     timeout_row = cursor.fetchone()
     auto_publish_timeout = timeout_row["value"] if timeout_row else "30"
+    
+    cursor.execute("SELECT value FROM system_settings WHERE key = 'cpa_network_id'")
+    cpa_row = cursor.fetchone()
+    cpa_network_id = cpa_row["value"] if cpa_row else "cpa_lead_net_9876"
+    
+    cursor.execute("SELECT value FROM system_settings WHERE key = 'primary_routing_domain'")
+    domain_row = cursor.fetchone()
+    primary_routing_domain = domain_row["value"] if domain_row else "https://offers.cpa-arbitrage.com"
     
     cursor.execute("SELECT value FROM system_settings WHERE key = 'active_sectors'")
     sectors_row = cursor.fetchone()
@@ -318,6 +343,8 @@ def settings_page():
         amazon_tag=amazon_tag,
         flipkart_tag=flipkart_tag,
         auto_publish_timeout=auto_publish_timeout,
+        cpa_network_id=cpa_network_id,
+        primary_routing_domain=primary_routing_domain,
         sectors_list=sectors_list
     )
 
@@ -363,7 +390,7 @@ def get_sectors():
 def run_pipeline():
     try:
         data = request.json or {}
-        sector = data.get('sector', 'smartphones')
+        sector = data.get('sector', 'auto_insurance')
         dry_run = data.get('dry_run', False)
 
         if dry_run:
@@ -503,12 +530,19 @@ TRUSTED_DOMAINS = [
     "bitli.in",
     "linkredirect.in",
     "onboarding.kotak.bank.in",
-    "kotak.com"
+    "kotak.com",
+    "offers.cpa-arbitrage.com",
+    "cpa-arbitrage.com",
+    "offers.cpa-lead-network.com"
 ]
 
 def is_safe_url(url):
     if not url:
         return False
+    # Dynamic click-to-call safety check
+    if url.startswith("tel:"):
+        import re
+        return bool(re.match(r"^tel:\+?[0-9\-]+$", url))
     try:
         from urllib.parse import urlparse
         parsed = urlparse(url)
@@ -530,10 +564,11 @@ def is_safe_url(url):
 def track_click(product_id, channel="direct"):
     """Redirect through tracking layer, then send user to affiliate link."""
     import affiliate_tracker
+    import html
 
     affiliate_link = request.args.get('url', '')
-    title          = request.args.get('title', '')
-    sector         = request.args.get('sector', '')
+    title          = html.escape(request.args.get('title', ''))
+    sector         = html.escape(request.args.get('sector', ''))
     score          = float(request.args.get('score', 0))
     commission     = float(request.args.get('commission', 0))
 
@@ -1025,13 +1060,51 @@ def review_dead_letter_route():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route('/api/wallet', methods=['GET'])
+@login_required
+@limiter.limit("30 per minute")
+def wallet_status():
+    """Returns the current user wallet balance and recent payouts."""
+    from bots import payout_gateway
+    balance = payout_gateway.get_wallet_balance(current_user.email)
+    payouts = payout_gateway.get_payout_history(current_user.email)
+    return jsonify({
+        "status": "success",
+        "user_id": current_user.email,
+        "balance": balance,
+        "payouts": payouts
+    })
+
+
+@app.route('/api/payout', methods=['POST'])
+@login_required
+@limiter.limit("5 per minute")
+def process_payout():
+    """Processes a secure instant UPI cashback payout."""
+    try:
+        from bots import payout_gateway
+        data = request.json or {}
+        upi_id = data.get("upi_id", "").strip()
+        amount = float(data.get("amount") or 0)
+        
+        if not upi_id:
+            return jsonify({"status": "error", "message": "UPI ID is required"}), 400
+        if amount <= 0:
+            return jsonify({"status": "error", "message": "Amount must be greater than zero"}), 400
+            
+        res = payout_gateway.process_upi_payout(current_user.email, upi_id, amount)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # PUBLIC WEBHOOK CONVERSION WEBHOOK (HMAC Protected, CSRF Exempt)
 # ═══════════════════════════════════════════════════════════════════════
 
-@app.route('/postback/conversion', methods=['POST'])
+@app.route('/postback/cpa_lead', methods=['POST'])
 @csrf.exempt
-def postback_conversion():
+def postback_cpa_lead():
     # 1. Validate the postback signature first.
     signature = request.headers.get('X-Signature') or request.args.get('signature')
     if not signature:
@@ -1054,8 +1127,39 @@ def postback_conversion():
         transaction_id = data.get("transaction_id")
         network_name = data.get("network_name") or "mock_network"
         
+        # Telephony fields
+        phone_val = data.get("phone_number") or data.get("tracking_number") or data.get("phone")
+        pin_val = data.get("extension_pin") or data.get("pin") or data.get("extension")
+        
         if not transaction_id:
             return jsonify({"status": "error", "message": "transaction_id is required"}), 400
+
+        # Inbound Telephony Session Mapping
+        if not click_id:
+            conn_phone = sqlite3.connect(db_manager.DB_PATH, timeout=5.0)
+            cursor_phone = conn_phone.cursor()
+            row_phone = None
+            if phone_val:
+                cursor_phone.execute("""
+                SELECT assigned_campaign_id, assigned_product_id 
+                FROM cpa_phone_pool 
+                WHERE (tracking_number = ? OR tracking_number LIKE ?) AND status = 'allocated'
+                """, (phone_val, f"%{phone_val}%"))
+                row_phone = cursor_phone.fetchone()
+                
+            if not row_phone and pin_val:
+                cursor_phone.execute("""
+                SELECT assigned_campaign_id, assigned_product_id 
+                FROM cpa_phone_pool 
+                WHERE extension_pin = ? AND status = 'allocated'
+                """, (str(pin_val),))
+                row_phone = cursor_phone.fetchone()
+            conn_phone.close()
+            
+            if row_phone:
+                assigned_camp_id, assigned_prod_id = row_phone
+                if not product_id:
+                    product_id = assigned_prod_id
 
         # We'll use a direct independent SQLite connection to handle explicit transaction safety and immediate locks
         conn = sqlite3.connect(db_manager.DB_PATH, timeout=30.0)
@@ -1079,17 +1183,31 @@ def postback_conversion():
             
             # 2. Update affiliate_conversions status to 'converted' (if applicable)
             if click_id:
-                cursor.execute('''
-                UPDATE affiliate_conversions
-                SET status = 'converted', sale_amount = ?, commission_amount = ?, converted_at = CURRENT_TIMESTAMP
-                WHERE click_id = ?
-                ''', (sale_amount, commission_amount, click_id))
+                cursor.execute("SELECT 1 FROM affiliate_conversions WHERE click_id = ?", (click_id,))
+                if not cursor.fetchone():
+                    cursor.execute("""
+                    INSERT INTO affiliate_conversions (click_id, product_id, status, sale_amount, commission_amount, converted_at)
+                    VALUES (?, ?, 'converted', ?, ?, CURRENT_TIMESTAMP)
+                    """, (click_id, product_id or 'unknown', sale_amount, commission_amount))
+                else:
+                    cursor.execute('''
+                    UPDATE affiliate_conversions
+                    SET status = 'converted', sale_amount = ?, commission_amount = ?, converted_at = CURRENT_TIMESTAMP
+                    WHERE click_id = ?
+                    ''', (sale_amount, commission_amount, click_id))
             elif product_id:
-                cursor.execute('''
-                UPDATE affiliate_conversions
-                SET status = 'converted', sale_amount = ?, commission_amount = ?, converted_at = CURRENT_TIMESTAMP
-                WHERE product_id = ? AND status = 'pending_conversion'
-                ''', (sale_amount, commission_amount, product_id))
+                cursor.execute("SELECT 1 FROM affiliate_conversions WHERE product_id = ? AND status = 'pending_conversion'", (product_id,))
+                if not cursor.fetchone():
+                    cursor.execute("""
+                    INSERT INTO affiliate_conversions (product_id, status, sale_amount, commission_amount, converted_at)
+                    VALUES (?, 'converted', ?, ?, CURRENT_TIMESTAMP)
+                    """, (product_id, sale_amount, commission_amount))
+                else:
+                    cursor.execute('''
+                    UPDATE affiliate_conversions
+                    SET status = 'converted', sale_amount = ?, commission_amount = ?, converted_at = CURRENT_TIMESTAMP
+                    WHERE product_id = ? AND status = 'pending_conversion'
+                    ''', (sale_amount, commission_amount, product_id))
                 
             # 3. Lookup product_id and session_id if they are missing but click_id is available
             if click_id:
@@ -1102,6 +1220,18 @@ def postback_conversion():
                         if not session_id:
                             session_id = row[1]
             
+            # Telephony voice session fallback: search last session for that product
+            if not session_id and product_id:
+                cursor.execute("SELECT session_id, id FROM affiliate_clicks WHERE product_id = ? ORDER BY clicked_at DESC LIMIT 1", (product_id,))
+                row = cursor.fetchone()
+                if row:
+                    session_id = row[0]
+                    if not click_id:
+                        click_id = row[1]
+            
+            if not session_id:
+                session_id = "inbound_voice_session"
+            
             # Enforce that both product_id and session_id must be resolved for suppression to happen,
             # otherwise fail the transaction to roll back both writes
             if not session_id or not product_id:
@@ -1112,6 +1242,25 @@ def postback_conversion():
             INSERT OR REPLACE INTO retargeting_suppression (session_id, product_id)
             VALUES (?, ?)
             ''', (session_id, product_id))
+
+            # 4.5. Phase 10: Auto-credit 15% of the CPA commission payout to the operator's wallet
+            cashback = 0.15 * commission_amount
+            if cashback > 0:
+                cursor.execute("INSERT OR IGNORE INTO user_wallets (user_id, available_balance) VALUES ('guest@marketing.ai', 0.0)")
+                cursor.execute("""
+                UPDATE user_wallets
+                SET available_balance = available_balance + ?
+                WHERE user_id = 'guest@marketing.ai'
+                """, (cashback,))
+                print(f"[WEBHOOK CASHBACK] Credited Rs.{cashback:.2f} (15% of Rs.{commission_amount:.2f}) to guest@marketing.ai")
+            
+            # 5. Free the telephony vectors back into the available pool
+            if product_id:
+                cursor.execute("""
+                UPDATE cpa_phone_pool
+                SET status = 'available', assigned_campaign_id = NULL, assigned_product_id = NULL, allocated_at = NULL
+                WHERE assigned_product_id = ? OR assigned_campaign_id = (SELECT id FROM campaigns WHERE product_id = ?)
+                """, (product_id, product_id))
                 
             # Simulate a forced failure for testing transactional integrity
             if data.get("force_failure_test"):
@@ -1156,7 +1305,7 @@ def _launch_job_queue_consumer():
                     
                     try:
                         if task_name == "run_single_sector":
-                            sector = payload.get("sector", "smartphones")
+                            sector = payload.get("sector", "auto_insurance")
                             pipeline_service._run_single_sector(sector)
                         elif task_name == "run_retargeting":
                             pipeline_service.run_retargeting_internal()

@@ -519,6 +519,92 @@ def live_post_to_whatsapp(post_data):
         print(f"  [WhatsApp-LIVE] Exception during API post: {exc}. Falling back to mock...")
         return mock_post_to_whatsapp(post_data)
 
+def allocate_tracking_voice_vector(campaign_id):
+    """
+    Allocates a unique trackable phone number or extension pin from a localized pool,
+    flags its status as 'allocated', and binds it to the campaign context.
+    Supports either integer database campaign_id or string 12-char product_id hash.
+    Uses robust transaction locking and a circular recycling fallback on pool exhaustion.
+    """
+    import sqlite3
+    from config import DB_PATH
+    
+    # Establish campaign identity keys
+    is_hash = isinstance(campaign_id, str)
+    
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    cursor = conn.cursor()
+    
+    try:
+        # 1. Idempotency Check: see if already allocated
+        if is_hash:
+            cursor.execute("SELECT tracking_number, extension_pin FROM cpa_phone_pool WHERE assigned_product_id = ?", (campaign_id,))
+        else:
+            cursor.execute("SELECT tracking_number, extension_pin FROM cpa_phone_pool WHERE assigned_campaign_id = ?", (campaign_id,))
+        row = cursor.fetchone()
+        if row:
+            conn.close()
+            return {"tracking_number": row[0], "extension_pin": row[1]}
+            
+        # 2. Start atomic transaction for allocation
+        conn.execute("BEGIN IMMEDIATE")
+        
+        # 3. Find an available slot
+        cursor.execute("SELECT id, tracking_number, extension_pin FROM cpa_phone_pool WHERE status = 'available' ORDER BY id ASC LIMIT 1")
+        slot = cursor.fetchone()
+        
+        if slot:
+            slot_id, number, pin = slot
+            # Allocate the slot
+            if is_hash:
+                cursor.execute("""
+                UPDATE cpa_phone_pool
+                SET status = 'allocated', assigned_product_id = ?, allocated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """, (campaign_id, slot_id))
+            else:
+                cursor.execute("""
+                UPDATE cpa_phone_pool
+                SET status = 'allocated', assigned_campaign_id = ?, allocated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """, (campaign_id, slot_id))
+            conn.commit()
+            return {"tracking_number": number, "extension_pin": pin}
+            
+        # 4. Circular Pool Recycling: if pool is fully exhausted, recycle the oldest allocation
+        cursor.execute("SELECT id, tracking_number, extension_pin FROM cpa_phone_pool ORDER BY allocated_at ASC LIMIT 1")
+        oldest_slot = cursor.fetchone()
+        if oldest_slot:
+            slot_id, number, pin = oldest_slot
+            if is_hash:
+                cursor.execute("""
+                UPDATE cpa_phone_pool
+                SET status = 'allocated', assigned_product_id = ?, assigned_campaign_id = NULL, allocated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """, (campaign_id, slot_id))
+            else:
+                cursor.execute("""
+                UPDATE cpa_phone_pool
+                SET status = 'allocated', assigned_campaign_id = ?, assigned_product_id = NULL, allocated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """, (campaign_id, slot_id))
+            conn.commit()
+            return {"tracking_number": number, "extension_pin": pin}
+            
+        # 5. Ultimate SRE Fallback: return default numbers
+        conn.rollback()
+        return {"tracking_number": "+18005550199", "extension_pin": "999"}
+        
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        print(f"[TELEPHONY_ALLOCATOR] Allocation exception: {e}. Returning fallback tracking vectors.")
+        return {"tracking_number": "+18005550199", "extension_pin": "999"}
+    finally:
+        conn.close()
+
 def distribute_campaign(campaign_id):
     """
     Distributes a specific campaign from the database by its campaign_id.

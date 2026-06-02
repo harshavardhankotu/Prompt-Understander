@@ -11,6 +11,8 @@ from urllib.parse import quote
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
+os.environ["FAST_VIDEO_RENDER"] = "True"
+
 # Ensure absolute project paths are imported correctly
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
@@ -235,7 +237,7 @@ def main():
     
     # Fire CSRF-exempt conversion postback POST
     webhook_res = client.post(
-        '/postback/conversion',
+        '/postback/cpa_lead',
         data=raw_payload,
         content_type='application/json',
         headers={"X-Signature": signature}

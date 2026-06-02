@@ -22,100 +22,76 @@ if api_key:
             print("Warning: No Gemini SDK found. Using mock captions.")
 
 SECTOR_TEMPLATES = {
-    "smartphones": {
-        "en": "📱 Upgrade your mobile game! Check out {title} at just ₹{price} on {platform}. Best choice for {labels}. {why}",
-        "hi": "📱 अपना मोबाइल अपग्रेड करें! {title} सिर्फ ₹{price} में {platform} पर पाएं। {labels} के लिए बेस्ट। {why}",
-        "ta": "📱 உங்கள் மொபைலை அப்கிரேட் செய்யுங்கள்! {title} வெறும் ₹{price} மட்டுமே {platform} இல். {labels} ஆக சிறந்த தேர்வு. {why}"
+    "auto_insurance": {
+        "en": "🚗 Stop throwing away ₹15,000 every year on bloated car insurance premiums! Compare top auto rates in 2 minutes on {platform} and save up to {discount}% on coverages. {why}",
+        "hi": "🚗 हर साल कार इंश्योरेंस के फालतू ₹15,000 भरना बंद करें! {platform} पर तुरंत मुफ्त कार इंश्योरेंस कोट पाएं और {discount}% तक बचाएं। {why}",
+        "ta": "🚗 வீணாக கார் இன்சூரன்ஸில் ஆண்டுக்கு ₹15,000 வரை வீணடிப்பதை நிறுத்துங்கள்! {platform} இல் உடனே இலவச கார் இன்சூரன்ஸ் கோட் பெறுங்கள், {discount}% வரை சேமியுங்கள். {why}"
     },
-    "laptops": {
-        "en": "💻 Supercharge your productivity with the {title}! Now available for ₹{price} on {platform}. {why}",
-        "hi": "💻 अपनी प्रोडक्टिविटी बढ़ाएं {title} के साथ! अब {platform} पर सिर्फ ₹{price} में उपलब्ध। {why}",
-        "ta": "💻 உங்கள் செயல்திறனை அதிகரிக்க {title}! இப்போது {platform} இல் வெறும் ₹{price} மட்டுமே. {why}"
+    "health_insurance": {
+        "en": "🏥 Medical bills shouldn't drain your life savings! Secure premium health coverages on {platform} for as low as ₹2,500/month. Free physician network checks. {why}",
+        "hi": "🏥 मेडिकल बिल आपके जीवन की बचत को खत्म नहीं करने चाहिए! {platform} पर सिर्फ ₹2,500/माह में स्वास्थ्य बीमा प्राप्त करें और {discount}% की बचत करें। {why}",
+        "ta": "🏥 மருத்துவக் கட்டணங்கள் உங்கள் சேமிப்பை அழிக்க விடாதீர்கள்! {platform} இல் மாதம் வெறும் ₹2,500 முதல் பிரீமியம் ஹெல்த் இன்சூரன்ஸ் பெறுங்கள், {discount}% வரை சேமியுங்கள். {why}"
     },
-    "fashion_men": {
-        "en": "👔 Style upgrade! Elevate your look with {title} on {platform} for just ₹{price}. {why}",
-        "hi": "👔 स्टाइल अपग्रेड! {platform} पर सिर्फ ₹{price} में {title} के साथ अपना लुक निखारें। {why}",
-        "ta": "👔 ஸ்டைல் அப்கிரேட்! {platform} இல் வெறும் ₹{price} மட்டுமே {title} உடன் உங்கள் தோற்றத்தை மேம்படுத்துங்கள். {why}"
+    "debt_relief": {
+        "en": "💸 Trapped under ₹5,00,000+ credit card or loan debt? Consolidate and cut interest rates by up to {discount}% with {platform}'s free debt relief advisory. {why}",
+        "hi": "💸 ₹5,00,000+ के कर्ज के जाल में फंसे हैं? {platform} के मुफ्त ऋण राहत कार्यक्रम से ब्याज दरों को {discount}% तक कम करें। {why}",
+        "ta": "💸 ₹5,00,000-க்கு மேல் கடனில் தவிக்கிறீர்களா? {platform} இன் இலவச கடன் நிவாரண ஆலோசனை மூலம் வட்டி விகிதத்தை {discount}% வரை குறைக்கவும். {why}"
     },
-    "fashion_women": {
-        "en": "👗 Fashion alert! Get the gorgeous {title} on {platform} today for ₹{price}. {why}",
-        "hi": "👗 फैशन अलर्ट! {platform} पर आज ही ₹{price} में खूबसूरत {title} पाएं। {why}",
-        "ta": "👗 பேஷன் அலர்ட்! {platform} இல் இன்று வெறும் ₹{price} மட்டுமே அழகான {title} பெறுங்கள். {why}"
+    "solar_energy": {
+        "en": "☀️ Slash your electricity bill by {discount}%+ with zero down home solar transition quotes on {platform}. Claim up to 30% government tax refund credits! {why}",
+        "hi": "☀️ बिजली का बिल आधा करें! {platform} पर जीरो डाउन होम सोलर पैनल कोट पाएं और {discount}% तक बिजली बिल बचाकर 30% सरकारी टैक्स रिफंड का लाभ उठाएं। {why}",
+        "ta": "☀️ மின் கட்டணத்தை {discount}% வரை குறையுங்கள்! {platform} இல் பூஜ்ஜிய முன்பணத்துடன் இலவச சோலார் பேனல் கோட் பெறுங்கள். {why}"
     },
-    "beauty": {
-        "en": "✨ Glow up time! Try {title} on {platform} for ₹{price}. Recommended for {labels}. {why}",
-        "hi": "✨ निखार पाने का समय! {platform} पर {title} सिर्फ ₹{price} में आज़माएं। {why}",
-        "ta": "✨ ஜொலிக்கும் நேரம்! {platform} இல் {title} வெறும் ₹{price} மட்டுமே. {why}"
-    },
-    "home": {
-        "en": "🏡 Cozy up your space! Get the lovely {title} on {platform} for ₹{price}. {why}",
-        "hi": "🏡 अपने घर को सजाएं! {platform} पर ₹{price} में प्यारा {title} पाएं। {why}",
-        "ta": "🏡 உங்கள் வீட்டை அழகுபடுத்துங்கள்! {platform} இல் வெறும் ₹{price} மட்டுமே {title}. {why}"
-    },
-    "kitchen": {
-        "en": "🍳 Kitchen upgrades! Cook in style with the {title} on {platform} for ₹{price}. {why}",
-        "hi": "🍳 किचन अपग्रेड! {platform} पर ₹{price} में {title} के साथ स्टाइल से खाना पकाएं। {why}",
-        "ta": "🍳 சமையலறை மேம்படுத்தல்கள்! {platform} இல் வெறும் ₹{price} மட்டுமே {title} உடன் சமைத்து மகிழுங்கள். {why}"
-    },
-    "sports": {
-        "en": "💪 Fitness goals! Grab your {title} on {platform} for ₹{price} and stay active. {why}",
-        "hi": "💪 फिटनेस गोल्स! {platform} पर ₹{price} में {title} पाएं और एक्टिव रहें। {why}",
-        "ta": "💪 உடற்பயிற்சி இலக்குகள்! {platform} இல் வெறும் ₹{price} மட்டுமே {title} பெற்று சுறுசுறுப்பாக இருங்கள். {why}"
-    },
-    "accessories": {
-        "en": "🕶️ Accessory check! Complete your outfit with {title} on {platform} for ₹{price}. {why}",
-        "hi": "🕶️ एक्सेसरी चेक! {platform} पर ₹{price} में {title} के साथ अपना ऑउटफिट पूरा करें। {why}",
-        "ta": "🕶️ அக்சஸரி செக்! {platform} இல் வெறும் ₹{price} மட்டுமே {title} உடன் உங்கள் ஆடையை முழுமையாக்குங்கள். {why}"
-    },
-    "automotive": {
-        "en": "🚗 Gear up! Check out the top-rated {title} on {platform} for just ₹{price}. {why}",
-        "hi": "🚗 गियर अप! {platform} पर सिर्फ ₹{price} में टॉप-रेटेड {title} देखें। {why}",
-        "ta": "🚗 கியர் அப்! {platform} இல் வெறும் ₹{price} மட்டுமே டாப்-ரேட்டட் {title} பாருங்கள். {why}"
+    "home_security": {
+        "en": "🔒 Protect what matters most with premium property protection systems on {platform}. Get zero upfront equipment monitoring quotes and save up to {discount}% on home insurance! {why}",
+        "hi": "🔒 अपने परिवार की सुरक्षा के लिए {platform} पर प्रीमियम होम सिक्योरिटी अलार्म कोट पाएं और कार/होम इंश्योरेंस प्रीमियम में {discount}% तक बचाएं! {why}",
+        "ta": "🔒 உங்கள் வீட்டைப் பாதுகாப்பாக வைத்திருங்கள்! {platform} இல் இலவச ஹோம் செக்யூரிட்டி கோட் பெற்று இன்சூரன்ஸ் பிரீமியத்தில் {discount}% வரை சேமியுங்கள்! {why}"
     },
     "live_links": {
-        "en": "🔗 Real-time deal! Get {title} now on {platform} for ₹{price}. Don't miss this! {why}",
-        "hi": "🔗 रियल-टाइम डील! {platform} पर ₹{price} में {title} अभी पाएं। इसे मिस न करें! {why}",
-        "ta": "🔗 ரியல்-டைம் டீல்! {platform} இல் வெறும் ₹{price} மட்டுமே {title} இப்போது பெறுங்கள். இதைத் தவறவிடாதீர்கள்! {why}"
+        "en": "🔗 Real-time savings alert! Slash your monthly overheads instantly on {platform} by up to {discount}%. Claim this high-ticket quotation tunnel before limits expire! {why}",
+        "hi": "🔗 रियल-टाइम बचत अलर्ट! {platform} पर तुरंत मासिक खर्चों को {discount}% तक कम करें। सीमाओं की समाप्ति से पहले लाभ उठाएं! {why}",
+        "ta": "🔗 ரியல்-டைம் சேமிப்பு அலர்ட்! {platform} இல் உடனே உங்கள் மாதாந்திர செலவுகளை {discount}% வரை குறையுங்கள். உடனே விண்ணப்பியுங்கள்! {why}"
     }
 }
 
 def generate_multilingual_copy(product):
-    platform = product.get('platform', 'Store')
-    title = product.get('title', 'Product')
+    platform = product.get('platform', 'CPA Network')
+    title = product.get('title', 'Service Campaign')
     price = product.get('price', 'N/A')
+    discount = product.get('discount', 40)
     
     bf = product.get('buyer_fit', {})
-    labels = ", ".join(bf.get('label_display', [])) if bf.get('label_display') else "Solid Pick"
+    labels = ", ".join(bf.get('label_display', [])) if bf.get('label_display') else "High Payout"
     
     vex = product.get('value_explanation', {})
     why = vex.get('why_this_product', '')
     tradeoffs = vex.get('tradeoffs', '')
     
-    sector = product.get('sector', 'smartphones').lower()
+    sector = product.get('sector', 'auto_insurance').lower()
     if sector not in SECTOR_TEMPLATES:
-        sector = "smartphones"
+        sector = "auto_insurance"
         
-    tmpl_en = SECTOR_TEMPLATES[sector]["en"].format(title=title, price=price, platform=platform, labels=labels, why=why)
-    tmpl_hi = SECTOR_TEMPLATES[sector]["hi"].format(title=title, price=price, platform=platform, labels=labels, why=why)
-    tmpl_ta = SECTOR_TEMPLATES[sector]["ta"].format(title=title, price=price, platform=platform, labels=labels, why=why)
+    tmpl_en = SECTOR_TEMPLATES[sector]["en"].format(title=title, price=price, platform=platform, labels=labels, why=why, discount=discount)
+    tmpl_hi = SECTOR_TEMPLATES[sector]["hi"].format(title=title, price=price, platform=platform, labels=labels, why=why, discount=discount)
+    tmpl_ta = SECTOR_TEMPLATES[sector]["ta"].format(title=title, price=price, platform=platform, labels=labels, why=why, discount=discount)
     
     mock_en = (
         f"🚨 {tmpl_en}\n\n"
-        f"🔗 Link in Bio/Comments!\n\n"
-        f"*Disclosure: As an affiliate, I earn a commission from qualifying purchases. #Ad\n\n"
-        f"#trending #{sector} #{platform.replace(' ', '')} #deals"
+        f"🔗 Get Quote / Call Now: Link in Bio!\n\n"
+        f"*Disclosure: Paid partner. Earns commission on qualified quote submissions. #Ad\n\n"
+        f"#savings #CPA #{sector} #{platform.replace(' ', '')} #freequote"
     )
     mock_hi = (
         f"🚨 {tmpl_hi}\n\n"
-        f"🔗 लिंक बायो/कमेंट्स में है!\n\n"
-        f"*डिस्क्लोज़र: एक एफिलिएट के रूप में, मैं योग्य खरीद से कमीशन कमाता हूँ। #Ad\n\n"
-        f"#trending #{sector} #{platform.replace(' ', '')} #deals"
+        f"🔗 कोट पाने / कॉल करने के लिए लिंक बायो में है!\n\n"
+        f"*डिस्क्लोज़र: पेड पार्टनर। क्वालिफाइड कोट पर कमीशन कमाता हूँ। #Ad\n\n"
+        f"#savings #CPA #{sector} #{platform.replace(' ', '')} #freequote"
     )
     mock_ta = (
         f"🚨 {tmpl_ta}\n\n"
-        f"🔗 லிங்க் பயோ/கமெண்ட்ஸில்!\n\n"
-        f"*வெளிப்படுத்தல்: ஒரு அஃபிலியேட்டாக, தகுதியான கொள்முதல் மூலம் நான் கமிஷன் பெறுகிறேன். #Ad\n\n"
-        f"#trending #{sector} #{platform.replace(' ', '')} #deals"
+        f"🔗 கோட் பெற / அழைக்க லிங்க் பயோவில் உள்ளது!\n\n"
+        f"*வெளிப்படுத்தல்: கட்டண கூட்டாளர். தகுதி வாய்ந்த கோட் சமர்ப்பிப்புகளுக்கு கமிஷன் பெறுகிறார். #Ad\n\n"
+        f"#savings #CPA #{sector} #{platform.replace(' ', '')} #freequote"
     )
     
     # Import reliability services
@@ -140,27 +116,27 @@ def generate_multilingual_copy(product):
         return {'en': mock_en, 'hi': mock_hi, 'ta': mock_ta}
 
     prompt = f"""
-    You are an expert social media copywriter for the Indian market.
-    Write highly engaging, concise affiliate marketing captions for the following product in 3 languages: English, Hindi, and Tamil.
+    You are an expert lead-acquisition copywriter specializing in high-ticket CPA (Cost Per Action) marketing campaigns.
+    Write highly engaging, problem-focused, and cost-saving captions for the following CPA service offer in 3 languages: English, Hindi, and Tamil.
     
-    Product details:
-    - Name: {title}
-    - Price: ₹{price}
-    - Platform: {platform}
-    - Buyer Fit Labels: {labels}
-    - Value Proposition: {why}
-    - Tradeoffs to mention honestly: {tradeoffs}
+    Offer details:
+    - Campaign Title: {title}
+    - Vertical Sector: {sector}
+    - Estimated Lead Payout: ₹{price}
+    - Cost Savings Percentage: {discount}%
+    - Source Platform: {platform}
+    - Target Demographics: {labels}
+    - Key Pain Point Resolution: {why}
     
     Rules for ALL languages:
-    - Keep it short, punchy, and natural.
-    - DO NOT do awkward literal translations. Use colloquial, persuasive language (e.g., Hinglish/Tanglish terms are okay if natural).
-    - Keep numbers, prices, and brand names as they are.
-    - Include a clear call to action to click the link.
-    - Include 3-4 relevant hashtags.
-    - You MUST append an explicit plain-language affiliate disclosure to the end of the text in the target language:
-      - For English: "*Disclosure: As an affiliate, I earn a commission from qualifying purchases. #Ad"
-      - For Hindi: "*डिस्क्लोज़र: एक एफिलिएट के रूप में, मैं योग्य खरीद से कमीशन कमाता हूँ। #Ad"
-      - For Tamil: "*வெளிப்படுத்தல்: ஒரு அஃபிலியேட்டாக, தகுதியான கொள்முதல் மூலம் நான் கமிஷன் பெறுகிறேன். #Ad"
+    - Write deep pain-point and cost-optimization hooks rather than physical product reviews (e.g. "Stop wasting ₹15,000 every year...").
+    - Keep captions natural, punchy, and persuasive.
+    - Keep names and pricing numbers exactly as they are.
+    - Include a clear call to action to submit a quote or call free now.
+    - You MUST explicitly append this required FTC marketing disclosure to the very end of the text:
+      - For English: "*Disclosure: Paid partner. Earns commission on qualified quote submissions. #Ad"
+      - For Hindi: "*डिस्क्लोज़र: पेड पार्टनर। क्वालिफाइड कोट पर कमीशन कमाता हूँ। #Ad"
+      - For Tamil: "*வெளிப்படுத்தல்: கட்டண கூட்டாளர். தகுதி வாய்ந்த கோட் சமர்ப்பிப்புகளுக்கு கமிஷன் பெறுகிறார். #Ad"
     
     Output strictly as a JSON object with keys: "en", "hi", "ta". 
     Do not wrap in markdown code blocks. Just return valid JSON.
@@ -203,9 +179,9 @@ def generate_multilingual_copy(product):
     text = retry_res["result"]
 
     disclosures = {
-        'en': "*Disclosure: As an affiliate, I earn a commission from qualifying purchases. #Ad",
-        'hi': "*डिस्क्लोज़र: एक एफिलिएट के रूप में, मैं योग्य खरीद से कमीशन कमाता हूँ। #Ad",
-        'ta': "*வெளிப்படுத்தல்: ஒரு அஃபிலியேட்டாக, தகுதியான கொள்முதல் மூலம் நான் கமிஷன் பெறுகிறேன். #Ad"
+        'en': "*Disclosure: Paid partner. Earns commission on qualified quote submissions. #Ad",
+        'hi': "*डिस्क्लोज़र: पेड पार्टनर। क्वालिफाइड कोट पर कमीशन कमाता हूँ। #Ad",
+        'ta': "*வெளிப்படுத்தல்: கட்டண கூட்டாளர். தகுதி வாய்ந்த கோட் சமர்ப்பிப்புகளுக்கு கமிஷன் பெறுகிறார். #Ad"
     }
 
     try:
@@ -218,14 +194,14 @@ def generate_multilingual_copy(product):
         if "en" in parsed and "hi" in parsed and "ta" in parsed:
             for lang in ['en', 'hi', 'ta']:
                 val = parsed[lang]
-                if "#Ad" not in val and "disclosure" not in val.lower() and "affiliate" not in val.lower():
+                if "#Ad" not in val and "disclosure" not in val.lower() and "commission" not in val.lower():
                     parsed[lang] = val.strip() + "\n\n" + disclosures[lang]
             return parsed
         else:
             parsed = {'en': text, 'hi': mock_hi, 'ta': mock_ta}
             for lang in ['en', 'hi', 'ta']:
                 val = parsed[lang]
-                if "#Ad" not in val and "disclosure" not in val.lower() and "affiliate" not in val.lower():
+                if "#Ad" not in val and "disclosure" not in val.lower() and "commission" not in val.lower():
                     parsed[lang] = val.strip() + "\n\n" + disclosures[lang]
             return parsed
     except Exception as e:

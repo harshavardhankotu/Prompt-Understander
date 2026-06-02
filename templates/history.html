@@ -356,6 +356,13 @@
     </div>
 
     <script>
+        function esc(t) { 
+            if (t === null || t === undefined) return '';
+            const d = document.createElement('div'); 
+            d.textContent = t; 
+            return d.innerHTML; 
+        }
+
         async function loadHistory() {
             const sector = document.getElementById('filterSector').value;
             const url = sector ? `/api/history?sector=${sector}` : '/api/history';
@@ -365,7 +372,7 @@
                 const data = await resp.json();
 
                 if (data.status !== 'success') {
-                    document.getElementById('tableBody').innerHTML = `<div class="empty-state"><p>Error: ${data.message}</p></div>`;
+                    document.getElementById('tableBody').innerHTML = `<div class="empty-state"><p>Error: ${esc(data.message)}</p></div>`;
                     return;
                 }
 
@@ -387,7 +394,7 @@
                     chartEl.innerHTML = sc.map((s, i) => {
                         const pct = Math.round((s.count / maxCount) * 100);
                         return `<div class="bar-row">
-                            <div class="bar-label">${s.sector}</div>
+                            <div class="bar-label">${esc(s.sector)}</div>
                             <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${colors[i % colors.length]}">${s.count}</div></div>
                         </div>`;
                     }).join('');
@@ -415,12 +422,12 @@
                 </tr></thead><tbody>`;
                 campaigns.forEach(c => {
                     html += `<tr>
-                        <td style="color:var(--text-1);font-weight:500;">${c.title || 'N/A'}</td>
-                        <td><span class="badge badge-sector">${c.sector || ''}</span></td>
-                        <td>₹${c.price || '0'}</td>
+                        <td style="color:var(--text-1);font-weight:500;">${esc(c.title || 'N/A')}</td>
+                        <td><span class="badge badge-sector">${esc(c.sector || '')}</span></td>
+                        <td>₹${esc(c.price || '0')}</td>
                         <td><span class="badge badge-views">${(c.total_views || 0).toLocaleString()}</span></td>
                         <td>${(c.total_clicks || 0).toLocaleString()}</td>
-                        <td style="font-size:0.75rem;">${c.created_at || ''}</td>
+                        <td style="font-size:0.75rem;">${esc(c.created_at || '')}</td>
                     </tr>`;
                 });
                 html += '</tbody></table>';
@@ -447,7 +454,7 @@
                         bar.style.background = ctr > 0 ? 'var(--green)' : 'var(--surface-3)';
                         bar.style.borderRadius = '3px 3px 0 0';
                         bar.style.transition = 'height 0.3s ease';
-                        bar.title = `${c.title}:\nViews: ${c.total_views}\nClicks: ${c.total_clicks}\nCTR: ${ctr.toFixed(1)}%`;
+                        bar.title = `${esc(c.title)}:\nViews: ${c.total_views}\nClicks: ${c.total_clicks}\nCTR: ${ctr.toFixed(1)}%`;
                         radar.appendChild(bar);
                     });
                 }
@@ -497,10 +504,10 @@
                     </tr></thead><tbody>`;
                     logs.forEach(l => {
                         html += `<tr>
-                            <td style="color:var(--text-1);font-weight:500;">${l.product_title || l.product_id}</td>
-                            <td><span class="badge badge-sector">${l.strategy}</span></td>
-                            <td style="font-family:monospace;font-size:0.7rem;">${l.session_id || '—'}</td>
-                            <td style="font-size:0.75rem;">${l.retargeted_at?.substring(11,19)}</td>
+                            <td style="color:var(--text-1);font-weight:500;">${esc(l.product_title || l.product_id)}</td>
+                            <td><span class="badge badge-sector">${esc(l.strategy)}</span></td>
+                            <td style="font-family:monospace;font-size:0.7rem;">${esc(l.session_id || '—')}</td>
+                            <td style="font-size:0.75rem;">${esc(l.retargeted_at?.substring(11,19))}</td>
                         </tr>`;
                     });
                     html += '</tbody></table>';

@@ -21,16 +21,12 @@ OUTPUT_DIR = os.path.join(BASE_DIR, 'data', 'output')
 # ═══════════════════════════════════════════════════════════════════════
 
 ADJACENT_SECTORS = {
-    "smartphones": ["accessories", "laptops"],
-    "laptops": ["smartphones", "accessories"],
-    "mens_fashion": ["accessories", "sports"],
-    "womens_fashion": ["beauty", "accessories"],
-    "beauty": ["womens_fashion", "accessories"],
-    "home": ["kitchen", "automotive"],
-    "kitchen": ["home", "beauty"],
-    "sports": ["mens_fashion", "accessories"],
-    "accessories": ["smartphones", "laptops", "mens_fashion", "womens_fashion"],
-    "automotive": ["home", "sports"],
+    "auto_insurance": ["health_insurance", "home_security"],
+    "health_insurance": ["auto_insurance", "debt_relief"],
+    "debt_relief": ["health_insurance", "solar_energy"],
+    "solar_energy": ["home_security", "debt_relief"],
+    "home_security": ["auto_insurance", "solar_energy"],
+    "live_links": ["auto_insurance", "health_insurance", "debt_relief", "solar_energy", "home_security"],
 }
 
 
@@ -39,7 +35,7 @@ ADJACENT_SECTORS = {
 # ═══════════════════════════════════════════════════════════════════════
 
 def _price_tier(price):
-    if price >= 15000:
+    if price >= 4000:
         return "premium"
     if price >= 3000:
         return "mid"

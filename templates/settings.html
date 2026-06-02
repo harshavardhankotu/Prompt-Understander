@@ -257,6 +257,21 @@
                 </div>
             </div>
 
+            <!-- CPA Network settings -->
+            <div class="form-section">
+                <div class="section-title">🏢 CPA Arbitrage & Domain Routing</div>
+                <div class="form-group">
+                    <label for="cpa_network_id">CPA Network ID</label>
+                    <input type="text" id="cpa_network_id" name="cpa_network_id" value="{{ cpa_network_id }}" required>
+                    <span class="help-text">Your unique network provider identifier (e.g. <code>cpa_lead_net_9876</code>). Required.</span>
+                </div>
+                <div class="form-group">
+                    <label for="primary_routing_domain">Primary Routing Domain</label>
+                    <input type="url" id="primary_routing_domain" name="primary_routing_domain" value="{{ primary_routing_domain }}" required>
+                    <span class="help-text">The domain used for dynamic attribution routing (e.g. <code>https://offers.cpa-arbitrage.com</code>). Required.</span>
+                </div>
+            </div>
+
             <!-- Active Sectors Toggles -->
             <div class="form-section">
                 <div class="section-title">⚙️ Active Sourcing Sectors</div>

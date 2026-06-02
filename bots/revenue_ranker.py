@@ -15,14 +15,16 @@ import json, os, sys
 # ═══════════════════════════════════════════════════════════════════════
 
 COMMISSION_RATES = {
-    # platform → category → rate (%)
-    "amazon":  {"default": 4, "smartphones": 2, "laptops": 3, "beauty": 6,
-                "kitchen": 8, "home": 7, "sports": 5, "automotive": 4,
-                "accessories": 9, "fashion": 8},
-    "flipkart": {"default": 6, "smartphones": 3, "laptops": 4, "beauty": 10,
-                 "kitchen": 10, "home": 9, "sports": 7, "automotive": 5,
-                 "accessories": 12, "fashion": 10},
-    "myntra":  {"default": 8, "fashion": 12, "beauty": 10, "accessories": 15},
+    # platform/network → vertical → rate (%)
+    "cpa_lead_net_9876": {
+        "default": 35,
+        "auto_insurance": 45,
+        "health_insurance": 40,
+        "debt_relief": 50,
+        "solar_energy": 45,
+        "home_security": 40,
+        "live_links": 35
+    }
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -56,13 +58,7 @@ def _rating_score(product):
 
 def _commission_score(product):
     """0-100 based on estimated commission rate."""
-    link = product.get("link", "") or product.get("affiliate_link", "")
-    platform = "amazon"
-    if "flipkart" in link.lower():
-        platform = "flipkart"
-    elif "myntra" in link.lower():
-        platform = "myntra"
-
+    platform = "cpa_lead_net_9876"
     sector = product.get("sector", "default").lower()
     
     # Load commission rates dynamically from SQLite operator_settings
@@ -82,13 +78,13 @@ def _commission_score(product):
         print(f"[REVENUE_RANKER] Error loading dynamic commission rates, using defaults: {exc}")
         rates = COMMISSION_RATES
 
-    platform_rates = rates.get(platform, rates.get("amazon", COMMISSION_RATES["amazon"]))
-    rate = platform_rates.get(sector, platform_rates.get("default", 4))
+    platform_rates = rates.get(platform, rates.get("cpa_lead_net_9876", COMMISSION_RATES["cpa_lead_net_9876"]))
+    rate = platform_rates.get(sector, platform_rates.get("default", 35))
 
     product["_est_commission_pct"] = rate
     product["_est_platform"] = platform
-    # Normalise: 15% = 100, 1% = 6.7
-    return min(rate / 15 * 100, 100)
+    # Normalise: 60% max = 100
+    return min(rate / 60 * 100, 100)
 
 def _urgency_score(product):
     """0-100 based on stock scarcity.  stock<5 = 100."""

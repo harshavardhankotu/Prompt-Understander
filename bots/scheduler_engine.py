@@ -441,11 +441,103 @@ def _run_auto_publish_sweep():
         print(f"[scheduler] Auto-publish sweep failed: {exc}")
 
 
+def backup_sqlite_database():
+    """
+    Safely copies data/campaigns.db to a new folder data/backups/campaigns_backup_YYYYMMDD.db
+    using SQLite's native, transaction-safe online backup API (sqlite3.Connection.backup).
+    Deletes backup files older than 7 days to preserve disk space.
+    """
+    print("[scheduler] Starting automated database backup using SQLite online backup API...")
+    source_conn = None
+    target_conn = None
+    try:
+        from datetime import datetime, timedelta
+        
+        db_dir = os.path.dirname(DB_PATH)
+        backup_dir = os.path.join(db_dir, "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Target backup filename format: campaigns_backup_YYYYMMDD.db
+        date_str = datetime.now().strftime("%Y%m%d")
+        backup_filename = f"campaigns_backup_{date_str}.db"
+        backup_path = os.path.join(backup_dir, backup_filename)
+        
+        if os.path.exists(DB_PATH):
+            source_conn = sqlite3.connect(DB_PATH, timeout=30.0)
+            target_conn = sqlite3.connect(backup_path, timeout=30.0)
+            with source_conn:
+                source_conn.backup(target_conn)
+            print(f"[scheduler] Database backup successful: {backup_path}")
+        else:
+            print(f"[scheduler] Warning: Database file not found at: {DB_PATH}")
+            
+        # Clean up backups older than 7 days
+        cutoff = datetime.now() - timedelta(days=7)
+        for filename in os.listdir(backup_dir):
+            if filename.startswith("campaigns_backup_") and filename.endswith(".db"):
+                filepath = os.path.join(backup_dir, filename)
+                try:
+                    date_part = filename[17:25]
+                    file_date = datetime.strptime(date_part, "%Y%m%d")
+                    if file_date < cutoff:
+                        os.remove(filepath)
+                        print(f"[scheduler] Purged old backup file: {filepath}")
+                except Exception:
+                    # Fallback to mtime if file naming pattern doesn't yield date
+                    mtime = datetime.fromtimestamp(os.path.getmtime(filepath))
+                    if mtime < cutoff:
+                        os.remove(filepath)
+                        print(f"[scheduler] Purged old backup file (mtime fallback): {filepath}")
+                        
+    except Exception as exc:
+        print(f"[scheduler] Database backup failed: {exc}")
+    finally:
+        if source_conn:
+            source_conn.close()
+        if target_conn:
+            target_conn.close()
+
+
+def cleanup_old_video_assets():
+    """
+    Scans the static/campaigns/ directory and deletes any render outputs (.mp4, .png) older than 48 hours.
+    """
+    print("[scheduler] Starting automated media cleanup sweep...")
+    try:
+        from datetime import datetime, timedelta
+        
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        campaigns_dir = os.path.join(project_root, "static", "campaigns")
+        
+        if not os.path.exists(campaigns_dir):
+            print(f"[scheduler] Video campaigns directory does not exist: {campaigns_dir}")
+            return
+            
+        cutoff = datetime.now() - timedelta(hours=48)
+        deleted_count = 0
+        
+        for filename in os.listdir(campaigns_dir):
+            if filename.endswith(".mp4") or filename.endswith(".png"):
+                filepath = os.path.join(campaigns_dir, filename)
+                mtime = datetime.fromtimestamp(os.path.getmtime(filepath))
+                if mtime < cutoff:
+                    try:
+                        os.remove(filepath)
+                        deleted_count += 1
+                        print(f"[scheduler] Deleted old render: {filepath}")
+                    except Exception as e:
+                        print(f"[scheduler] Failed to delete file {filepath}: {e}")
+                        
+        print(f"[scheduler] Video assets cleanup complete. Total files deleted: {deleted_count}")
+    except Exception as exc:
+        print(f"[scheduler] Video assets cleanup sweep failed: {exc}")
+
+
 # ─── public API ───────────────────────────────────────────────────────────────
 
 def start(flask_app):
     """
-    Initialise APScheduler and register all 6 jobs.
+    Initialise APScheduler and register all jobs.
     Called once from app.py startup (reloader-safe).
     """
     global _scheduler, _flask_app
@@ -501,8 +593,36 @@ def start(flask_app):
         replace_existing=True,
     )
 
+    # Register database backups daily at 02:00 AM IST
+    _scheduler.add_job(
+        func=backup_sqlite_database,
+        trigger="cron",
+        hour=2,
+        minute=0,
+        timezone=IST,
+        id="db_backup_daily",
+        name="Daily DB Backup (02:00 IST)",
+        max_instances=1,
+        coalesce=True,
+        replace_existing=True,
+    )
+
+    # Register video asset cleanup daily at 03:00 AM IST
+    _scheduler.add_job(
+        func=cleanup_old_video_assets,
+        trigger="cron",
+        hour=3,
+        minute=0,
+        timezone=IST,
+        id="video_cleanup_daily",
+        name="Daily Video Cleanup (03:00 IST)",
+        max_instances=1,
+        coalesce=True,
+        replace_existing=True,
+    )
+
     _scheduler.start()
-    print("[scheduler] APScheduler started — 7 jobs registered (IST)")
+    print("[scheduler] APScheduler started — 9 jobs registered (IST)")
 
     # Persist initial next_run_at values
     for job in JOB_REGISTRY:

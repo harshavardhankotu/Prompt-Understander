@@ -22,15 +22,16 @@ if api_key:
             pass
 
 def generate_video_scripts(product):
-    title = product.get('title', 'Product')
+    title = product.get('title', 'Service Offer')
     price = product.get('price', 'N/A')
+    discount = product.get('discount', 40)
     why = product.get('value_explanation', {}).get('why_this_product', '')
     
     mock_script = {
-        "hook": "Wait! Don't buy that phone until you see this.",
-        "body": f"The {title} is currently only ₹{price}. {why}",
-        "cta": "Link in bio to grab this deal!",
-        "visual_cues": "0s: Close up of product. 5s: Zoom into price tag. 15s: Thumbs up."
+        "hook": "Stop throwing away ₹15,000 every year on bloated premiums!",
+        "body": f"This high-yield {title} campaign can save you up to {discount}% on your monthly overheads instantly. Simple quote, zero obligation.",
+        "cta": "Get your free quote now! Link in bio. *Disclosure: Paid partner. Earns commission on qualified quote submissions. #Ad",
+        "visual_cues": "0s: Close up of savings metric. 5s: Zoom into zero cost badge. 15s: Intense green GET FREE QUOTE NOW button."
     }
     
     # Import reliability services
@@ -55,16 +56,21 @@ def generate_video_scripts(product):
         return mock_script
 
     prompt = f"""
-    Write a 30-second high-conversion viral video script (Reels/Shorts/TikTok) for this product.
+    Write a 30-second high-conversion viral video script (Reels/Shorts/TikTok) for this high-ticket CPA lead generation offer.
     
-    Product: {title}
-    Price: ₹{price}
-    Key Selling Point: {why}
+    Campaign: {title}
+    Vertical Payout: ₹{price}
+    Key Optimization Feature: Save up to {discount}%
+    Key Value Proposition: {why}
+    
+    Rules:
+    - Write high-impact financial pain-point and cost-optimization hooks rather than physical product reviews (e.g. "Stop throwing away ₹15,000 every year...").
+    - The copy MUST explicitly embed the required FTC marketing disclosure at the end of the CTA: "*Disclosure: Paid partner. Earns commission on qualified quote submissions. #Ad".
     
     Format:
     - Hook: A 3-second attention-grabbing opener.
     - Body: 20 seconds of punchy benefits.
-    - CTA: 7-second clear call to action.
+    - CTA: 7-second clear call to action with disclosure.
     - Visual Cues: Brief descriptions of what should happen on screen.
     
     Output strictly as a JSON object with keys: "hook", "body", "cta", "visual_cues".
@@ -113,15 +119,21 @@ def generate_video_scripts(product):
         elif text.startswith("```"):
             text = text[3:-3].strip()
             
-        return json.loads(text)
+        parsed = json.loads(text)
+        # Ensure FTC disclosure is attached
+        disclosure = "*Disclosure: Paid partner. Earns commission on qualified quote submissions. #Ad"
+        if "cta" in parsed and "#Ad" not in parsed["cta"]:
+            parsed["cta"] = parsed["cta"].strip() + " " + disclosure
+        return parsed
     except Exception as e:
         print(f"Error parsing video script JSON: {e}")
         return mock_script
 
 def render_video_clip(product, script):
     """
-    Renders a 15-second 9:16 vertical MP4 video for the product and script.
+    Renders a 15-second 9:16 vertical MP4 video for the CPA campaign.
     Saves it to static/campaigns/video_{campaign_id}.mp4.
+    Applies Ken Burns typographic zoom over large financial metrics and green CTA panels.
     """
     campaign_id = product.get('id', 'unknown')
     print(f"    [VIDEO-RENDER] Starting video render for campaign {campaign_id}...")
@@ -135,103 +147,141 @@ def render_video_clip(product, script):
     # 2. Get voiceover text from script
     hook = script.get("hook", "Check out this deal!")
     body = script.get("body", "")
-    cta = script.get("cta", "Link in bio to buy!")
+    cta = script.get("cta", "Link in bio to apply!")
     voiceover_text = f"{hook}. {body}. {cta}"
     
     temp_mp3 = None
     video = None
     
     try:
-        from gtts import gTTS
-        from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
-        from moviepy.audio.io.AudioFileClip import AudioFileClip
         from PIL import Image, ImageDraw, ImageFont
         import numpy as np
+        from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
         
-        # 3. Generate Audio via gTTS
-        print("      [VIDEO-RENDER] Generating voiceover TTS MP3...")
-        tts = gTTS(text=voiceover_text, lang='en', slow=False)
-        temp_dir = tempfile.gettempdir()
-        temp_mp3 = os.path.join(temp_dir, f"voiceover_{campaign_id}.mp3")
-        tts.save(temp_mp3)
+        fast_mode = os.getenv("FAST_VIDEO_RENDER") == "True"
         
-        # Determine duration from audio file or default to 15 seconds
-        audio_clip = AudioFileClip(temp_mp3)
-        audio_duration = audio_clip.duration
-        duration = int(max(10, min(15, audio_duration))) # clamp between 10 and 15 seconds
-        print(f"      [VIDEO-RENDER] Voiceover duration: {audio_duration:.2f}s (clamped to {duration}s)")
-        
-        # 4. Resolve Creative Graphic Image Path
-        graphic_path = product.get('graphic_path')
-        if not graphic_path or not os.path.exists(graphic_path):
-            # Fallback to a placeholder if missing
-            print(f"      [VIDEO-RENDER] Warning: graphic_path {graphic_path} not found. Creating placeholder.")
-            base_img = Image.new("RGB", (1080, 1080), (71, 85, 105))
-            draw = ImageDraw.Draw(base_img)
-            draw.text((100, 500), product.get('title', 'Product'), fill=(255, 255, 255))
+        if fast_mode:
+            print("      [VIDEO-RENDER] FAST_VIDEO_RENDER active. Compiling 1-second 1-fps mock video.")
+            duration = 1
+            fps = 1
+            audio_clip = None
         else:
-            base_img = Image.open(graphic_path)
+            from gtts import gTTS
+            from moviepy.audio.io.AudioFileClip import AudioFileClip
             
-        # 5. PIL Ken Burns Zooming & Frame Generator (10 fps)
+            # 3. Generate Audio via gTTS
+            print("      [VIDEO-RENDER] Generating voiceover TTS MP3...")
+            tts = gTTS(text=voiceover_text, lang='en', slow=False)
+            temp_dir = tempfile.gettempdir()
+            temp_mp3 = os.path.join(temp_dir, f"voiceover_{campaign_id}.mp3")
+            tts.save(temp_mp3)
+            
+            # Determine duration from audio file or default to 15 seconds
+            audio_clip = AudioFileClip(temp_mp3)
+            audio_duration = audio_clip.duration
+            duration = int(max(10, min(15, audio_duration))) # clamp between 10 and 15 seconds
+            fps = 10
+            print(f"      [VIDEO-RENDER] Voiceover duration: {audio_duration:.2f}s (clamped to {duration}s)")
+        
+        # 4. Pillow Typographic design parameters
         fps = 10
         total_frames = fps * duration
         frames = []
         
-        print(f"      [VIDEO-RENDER] Compiling {total_frames} frames via Pillow...")
+        print(f"      [VIDEO-RENDER] Rendering {total_frames} typography frames frame-by-frame...")
         
-        # Select font
+        # Select fonts
+        font_large = None
         font_hook = None
         font_cta = None
         for font_name in ["Inter-Bold.ttf", "arialbd.ttf", "arial.ttf"]:
             try:
-                font_hook = ImageFont.truetype(font_name, 56)
+                font_large = ImageFont.truetype(font_name, 80)
+                font_hook = ImageFont.truetype(font_name, 52)
                 font_cta = ImageFont.truetype(font_name, 48)
                 break
             except Exception:
                 pass
-        if not font_hook:
+        if not font_large:
+            font_large = ImageFont.load_default()
             font_hook = ImageFont.load_default()
             font_cta = ImageFont.load_default()
             
+        discount = product.get('discount', 40)
+        payout = product.get('price', '3,200')
+        brand = product.get('brand', 'CPA Partner')
+        title = product.get('title', 'CPA Offer')
+        
+        # Create base image for typography
+        base_img = Image.new("RGB", (1080, 1080), (18, 18, 22))
+        draw_base = ImageDraw.Draw(base_img)
+        
+        # Draw background elements
+        draw_base.rectangle([50, 50, 1030, 1030], outline=(40, 40, 50), width=3)
+        
+        # Draw vertical name/brand
+        draw_base.text((100, 150), brand.upper(), font=font_hook, fill=(34, 197, 94)) # Green accent brand
+        
+        # Draw big financial metric
+        draw_base.text((100, 350), f"SAVINGS: {discount}%", font=font_large, fill=(245, 158, 11)) # Amber metric
+        draw_base.text((100, 500), f"PAYOUT: ₹{payout}", font=font_large, fill=(255, 255, 255))
+        
+        # Draw short value explainer text
+        explainer_txt = product.get('description', '')
+        if len(explainer_txt) > 80:
+            explainer_txt = explainer_txt[:77] + "..."
+        draw_base.text((100, 750), explainer_txt, font=font_cta, fill=(156, 163, 175))
+        
+        # DNI Pool Lookup: allocate tracking number & extension pin for high-visibility overlay
+        from bots.distributor import allocate_tracking_voice_vector
+        voice_vector = allocate_tracking_voice_vector(campaign_id)
+        tracking_number = voice_vector.get("tracking_number", "+18005550199")
+        extension_pin = voice_vector.get("extension_pin", "999")
+
+        # 5. Compile frame loop (applying Ken Burns Zoom and Bottom CTA box)
         for i in range(total_frames):
             # Canvas 1080x1920 (9:16 vertical video)
-            canvas = Image.new("RGB", (1080, 1920), (18, 18, 22)) 
-            
-            # Draw subtle top/bottom neon accent lines
+            canvas = Image.new("RGB", (1080, 1920), (12, 12, 16))
             draw = ImageDraw.Draw(canvas)
-            draw.rectangle([0, 0, 1080, 15], fill=(71, 85, 105)) # Slate top accent
-            draw.rectangle([0, 1905, 1080, 1920], fill=(34, 197, 94)) # Green bottom accent
             
-            # Ken Burns effect: Zoom from 0.90 to 1.02 over time
+            # Subtle accent lines
+            draw.rectangle([0, 0, 1080, 20], fill=(245, 158, 11)) # Amber top
+            draw.rectangle([0, 1900, 1080, 1920], fill=(34, 197, 94)) # Green bottom
+            
+            # Ken Burns effect: Zoom the base typography image over time
             t = i / total_frames
-            scale = 0.90 + 0.12 * t
+            scale = 0.95 + 0.10 * t
             
             new_w = int(base_img.width * scale)
             new_h = int(base_img.height * scale)
             scaled_img = base_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
             
-            # Center the image
+            # Paste scaled image in the center
             x = (1080 - new_w) // 2
-            y = (1920 - new_h) // 2
+            y = (1920 - new_h) // 2 - 100
             canvas.paste(scaled_img, (x, y))
             
-            # Overlay Hook text with panel
-            draw.rectangle([50, 100, 1030, 280], fill=(26, 26, 31, 200))
+            # Overlay Hook text panel at the top
+            draw.rectangle([60, 120, 1020, 320], fill=(26, 26, 31, 230), outline=(40, 40, 50), width=2)
             hook_text = hook
             if len(hook_text) > 40:
                 hook_text = hook_text[:37] + "..."
-            draw.text((90, 160), hook_text, font=font_hook, fill=(241, 241, 244))
+            draw.text((100, 180), hook_text, font=font_hook, fill=(241, 241, 244))
             
-            # Overlay CTA text with panel
-            draw.rectangle([50, 1650, 1030, 1800], fill=(34, 197, 94, 230))
-            cta_text = cta
-            if len(cta_text) > 40:
-                cta_text = cta_text[:37] + "..."
-            draw.text((120, 1700), cta_text, font=font_cta, fill=(255, 255, 255))
+            # Overlay DNI high-visibility voice vector panel right above the CTA button
+            draw.rectangle([80, 1400, 1000, 1550], fill=(26, 26, 31, 240), outline=(245, 158, 11), width=2)
+            voice_overlay = f"Call Now: {tracking_number} Pin: {extension_pin}"
+            draw.text((120, 1445), voice_overlay, font=font_hook, fill=(245, 158, 11))
+
+            # Overlay an intense green-accented GET FREE QUOTE NOW CTA button at the bottom
+            draw.rectangle([80, 1600, 1000, 1780], fill=(34, 197, 94, 255), outline=(22, 163, 74), width=3)
+            # Inner border for a premium feel
+            draw.rectangle([90, 1610, 990, 1770], outline=(255, 255, 255, 100), width=2)
+            draw.text((180, 1660), "⚡ GET FREE QUOTE NOW", font=font_hook, fill=(255, 255, 255))
             
-            # Dynamic amber progress bar
+            # Dynamic amber progress bar at the very bottom
             progress_w = int((i / total_frames) * 1080)
-            draw.rectangle([0, 1900, progress_w, 1905], fill=(245, 158, 11))
+            draw.rectangle([0, 1890, progress_w, 1895], fill=(245, 158, 11))
             
             frames.append(np.array(canvas))
             
@@ -240,11 +290,12 @@ def render_video_clip(product, script):
         video = ImageSequenceClip(frames, fps=fps)
         
         # Sync audio and write file (compatible with moviepy v1 and v2)
-        print("      [VIDEO-RENDER] Attaching voiceover audio clip...")
-        if hasattr(video, 'with_audio'):
-            video = video.with_audio(audio_clip.with_duration(duration))
-        else:
-            video = video.set_audio(audio_clip.set_duration(duration))
+        if not fast_mode and audio_clip:
+            print("      [VIDEO-RENDER] Attaching voiceover audio clip...")
+            if hasattr(video, 'with_audio'):
+                video = video.with_audio(audio_clip.with_duration(duration))
+            else:
+                video = video.set_audio(audio_clip.set_duration(duration))
         
         print(f"      [VIDEO-RENDER] Exporting high-definition MP4 to: {output_file}...")
         video.write_videofile(
@@ -259,15 +310,27 @@ def render_video_clip(product, script):
         
     except Exception as e:
         print(f"    [VIDEO-RENDER] ERROR: Video compilation failed: {e}")
-        # Continue pipeline safely so the image/text campaigns still go out
     finally:
+        try:
+            if 'audio_clip' in locals() and audio_clip:
+                audio_clip.close()
+                print("      [VIDEO-RENDER] Closed audio clip handle.")
+        except Exception as audio_err:
+            print(f"      [VIDEO-RENDER] Failed to close audio clip: {audio_err}")
+            
         try:
             if video:
                 video.close()
+                print("      [VIDEO-RENDER] Closed video clip handle.")
+        except Exception as video_err:
+            print(f"      [VIDEO-RENDER] Failed to close video clip: {video_err}")
+            
+        try:
             if temp_mp3 and os.path.exists(temp_mp3):
                 os.remove(temp_mp3)
-        except Exception:
-            pass
+                print("      [VIDEO-RENDER] Successfully cleaned up temporary voiceover MP3.")
+        except Exception as clean_err:
+            print(f"      [VIDEO-RENDER] Failed to delete temporary voiceover MP3: {clean_err}")
 
 def run_script_generation():
     print("Generating short-form video scripts and rendering mp4 reels...")

@@ -441,6 +441,46 @@
             <a href="/history#scheduler" class="sched-link">Manage jobs →</a>
         </div>
 
+        <!-- Phase 10: UPI Wallet & Instant Cashback Payouts -->
+        <div class="sre-panel" id="upiWalletCard" style="border-color: var(--green); background: linear-gradient(180deg, rgba(34,197,94,0.02) 0%, transparent 100%); margin-bottom: 32px;">
+            <div class="sre-header">
+                <h3 style="color: var(--green);"><span class="sched-active-dot" style="background: var(--green); margin-right: 8px;"></span> 💳 Phase 10: UPI Wallet & Cashback Payout Gateway</h3>
+                <span class="sre-badge ok" style="background: var(--green-soft); color: var(--green);">Instant Payouts Active</span>
+            </div>
+            
+            <div class="sre-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                <!-- Balance & Payout Form -->
+                <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center;">
+                    <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 600;">Available Cashback Balance</div>
+                    <div style="font-size: 2.2rem; font-weight: 800; color: var(--green); margin-top: 5px;" id="walletBalance">₹0.00</div>
+                    <div style="font-size: 0.75rem; color: var(--text-2); margin-top: 4px;">User Account: <span id="walletUser" style="font-weight:600; color:var(--text-1);">guest@marketing.ai</span></div>
+                    
+                    <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
+                    
+                    <h4 style="font-size: 0.85rem; text-align: left; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-2);">Request Instant UPI Payout</h4>
+                    <div style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
+                        <div>
+                            <label style="font-size: 0.65rem; color: var(--text-3); text-transform: uppercase; display: block; margin-bottom: 4px;">UPI ID / VPA</label>
+                            <input type="text" id="payoutUpiId" placeholder="user@okhdfcbank" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-3); color: var(--text-1); font-family: inherit; font-size: 0.85rem;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.65rem; color: var(--text-3); text-transform: uppercase; display: block; margin-bottom: 4px;">Amount (₹)</label>
+                            <input type="number" id="payoutAmount" placeholder="100" min="1" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-3); color: var(--text-1); font-family: inherit; font-size: 0.85rem;">
+                        </div>
+                        <button class="sched-run-now" onclick="triggerUPIPayout()" style="width: 100%; padding: 10px; background: var(--green); color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">⚡ Process Instant Payout</button>
+                    </div>
+                </div>
+                
+                <!-- Recent Payout Transactions -->
+                <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; display: flex; flex-direction: column;">
+                    <h4 style="font-size: 0.85rem; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-2);">Instant Cashback Payout Ledger</h4>
+                    <div style="flex: 1; overflow-y: auto; max-height: 250px;" id="payoutLedgerContainer">
+                        <div style="color:var(--text-3); font-size:0.75rem; text-align:center; padding:40px;">No payout transactions recorded yet.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- SRE Health Dashboard Panel -->
         <div class="sre-panel">
             <div class="sre-header">
@@ -1427,12 +1467,87 @@
             }
         }
 
+        async function loadWalletStatus() {
+            try {
+                const resp = await fetch('/api/wallet');
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    document.getElementById('walletBalance').textContent = `₹${data.balance.toFixed(2)}`;
+                    document.getElementById('walletUser').textContent = data.user_id;
+                    
+                    const ledger = document.getElementById('payoutLedgerContainer');
+                    const txs = data.payouts || [];
+                    if (txs.length === 0) {
+                        ledger.innerHTML = '<div style="color:var(--text-3); font-size:0.75rem; text-align:center; padding:40px;">No payout transactions recorded yet.</div>';
+                        return;
+                    }
+                    
+                    let html = '<table style="width:100%; border-collapse:collapse; font-size:0.75rem;"><thead><tr style="text-align:left; color:var(--text-3); border-bottom:1px solid var(--border);"><th style="padding:6px;">TxID</th><th style="padding:6px;">UPI ID</th><th style="padding:6px;">Amount</th><th style="padding:6px;">Date</th><th style="padding:6px;">Status</th></tr></thead><tbody>';
+                    txs.forEach(tx => {
+                        html += `<tr style="border-bottom:1px solid var(--surface-3); hover:background:rgba(255,255,255,0.01);">
+                            <td style="padding:6px; color:var(--text-1); font-weight:600;">${esc(tx.payout_id)}</td>
+                            <td style="padding:6px; font-family:monospace;">${esc(tx.upi_id)}</td>
+                            <td style="padding:6px; color:var(--green); font-weight:700;">₹${tx.payout_amount.toFixed(2)}</td>
+                            <td style="padding:6px; color:var(--text-3);">${esc(tx.created_at.substring(5,16))}</td>
+                            <td style="padding:6px;"><span class="badge badge-success" style="font-size:0.6rem; padding:1px 5px;">${esc(tx.status)}</span></td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    ledger.innerHTML = html;
+                }
+            } catch(e) {
+                console.error("Failed to load wallet status:", e);
+            }
+        }
+        
+        async function triggerUPIPayout() {
+            const upiId = document.getElementById('payoutUpiId').value.trim();
+            const amount = parseFloat(document.getElementById('payoutAmount').value);
+            
+            if (!upiId) {
+                alert("Please enter a valid UPI ID.");
+                return;
+            }
+            if (isNaN(amount) || amount <= 0) {
+                alert("Please enter a valid payout amount greater than zero.");
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to transfer ₹${amount.toFixed(2)} to ${upiId} instantly?`)) {
+                return;
+            }
+            
+            try {
+                const resp = await fetch('/api/payout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({upi_id: upiId, amount: amount})
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    alert(`✅ Cashback payout successful!\nTransaction ID: ${res.payout_id}\nAmount: ₹${res.amount}`);
+                    document.getElementById('payoutAmount').value = '';
+                    document.getElementById('payoutUpiId').value = '';
+                    loadWalletStatus();
+                } else {
+                    alert(`❌ Payout Failed: ${res.message}`);
+                }
+            } catch(e) {
+                alert(`⚠️ Network Error: ${e.message}`);
+            }
+        }
+
         // Run on load and poll every 5s
         loadSchedulerWidget();
         loadReliabilityStatus();
         loadPendingQueue();
+        loadWalletStatus();
         setInterval(loadReliabilityStatus, 5000);
         setInterval(loadPendingQueue, 10000);
+        setInterval(loadWalletStatus, 10000);
     </script>
 </body>
 </html>
